@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sistema de Planejamento BNCC — EI ao 3º EM | Prof. Lafaiete Erkmann</title>
 <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -355,23 +357,23 @@ body{background:#e8e5db;background-image:repeating-linear-gradient(0deg,transpar
     </div>
     <div class="token-body">
 
-      <!-- TELA 1: escolha do pacote -->
-      <div id="mpTelaEscolha">
-        <p style="color:#aaa;font-size:.82rem;margin-bottom:14px;text-align:center;">Escolha um pacote e pague com cartão, PIX ou boleto via Mercado Pago:</p>
+      <!-- TELA: escolha do pacote -->
+      <div id="hotmartTelaEscolha">
+        <p style="color:#aaa;font-size:.82rem;margin-bottom:14px;text-align:center;">Escolha um pacote e pague com cartão ou PIX pelo Hotmart:</p>
         <div class="token-planos">
-          <div class="token-plano" onclick="iniciarCompraMp(10,990,'10 Planos')">
+          <div class="token-plano" onclick="abrirHotmart(10)">
             <span class="tp-badge">BÁSICO</span>
             <span class="tp-qtd">10</span>
             <span class="tp-label">planos</span>
             <span class="tp-preco">R$ 9,90<br><small>R$ 0,99/plano</small></span>
           </div>
-          <div class="token-plano destaque" onclick="iniciarCompraMp(30,1990,'30 Planos')">
+          <div class="token-plano destaque" onclick="abrirHotmart(30)">
             <span class="tp-badge">⭐ POPULAR</span>
             <span class="tp-qtd">30</span>
             <span class="tp-label">planos</span>
             <span class="tp-preco">R$ 19,90<br><small>R$ 0,66/plano</small></span>
           </div>
-          <div class="token-plano" onclick="iniciarCompraMp(100,4990,'100 Planos')">
+          <div class="token-plano" onclick="abrirHotmart(100)">
             <span class="tp-badge">PRO</span>
             <span class="tp-qtd">100</span>
             <span class="tp-label">planos</span>
@@ -379,8 +381,14 @@ body{background:#e8e5db;background-image:repeating-linear-gradient(0deg,transpar
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;margin-top:14px;padding:10px 14px;background:#0d1e0d;border:1px solid #27ae60;border-radius:8px;">
-          <img src="https://http2.mlstatic.com/frontend-assets/mp-web-navigation/ui-navigation/5.21.22/mercadopago/logo__large@2x.png" style="height:18px;opacity:.8;" alt="Mercado Pago" onerror="this.style.display='none'">
-          <span style="color:#aaa;font-size:.76rem;">Pagamento seguro · Cartão, PIX ou Boleto · Aprovação imediata</span>
+          <span style="font-size:1.1rem;">🛒</span>
+          <span style="color:#aaa;font-size:.76rem;">Pagamento seguro via <strong style="color:#fff;">Hotmart</strong> · Cartão ou PIX · Confirmação automática</span>
+        </div>
+        <div style="margin-top:12px;padding:10px 14px;background:#0f1923;border:1px solid #1a5276;border-radius:8px;color:#aaa;font-size:.76rem;line-height:1.8;">
+          <strong style="color:#fff;">Como funciona:</strong><br>
+          1️⃣ Clique no pacote desejado<br>
+          2️⃣ Finalize o pagamento na página do Hotmart<br>
+          3️⃣ Seus 🎟️ tokens entram automaticamente na sua conta
         </div>
         <div class="token-free-info" style="margin-top:12px;">
           Conta gratuita: <strong>5 planos</strong> para experimentar.<br>
@@ -388,36 +396,20 @@ body{background:#e8e5db;background-image:repeating-linear-gradient(0deg,transpar
         </div>
       </div>
 
-      <!-- TELA 2: aguardando / processando -->
-      <div id="mpTelaAguardando" style="display:none;text-align:center;padding:16px 0;">
+      <!-- TELA: aguardando / processando -->
+      <div id="hotmartTelaAguardando" style="display:none;text-align:center;padding:16px 0;">
         <div style="font-size:2.5rem;margin-bottom:12px;">⏳</div>
-        <p style="color:#fff;font-weight:700;font-size:1rem;margin-bottom:8px;" id="mpStatusTexto">Abrindo Mercado Pago...</p>
-        <p style="color:#aaa;font-size:.82rem;margin-bottom:20px;" id="mpStatusSub">Complete o pagamento na aba que abriu. Seus tokens serão liberados automaticamente.</p>
-        <div style="background:#1a2535;border-radius:8px;padding:14px;margin-bottom:16px;">
-          <div style="color:#aaa;font-size:.76rem;margin-bottom:6px;">Pacote selecionado</div>
-          <div style="color:#fff;font-weight:700;" id="mpResumoCompra">—</div>
-        </div>
-        <div id="mpPollingStatus" style="font-size:.78rem;color:#666;margin-bottom:16px;"></div>
-        <button onclick="cancelarCompraMp()" style="background:none;border:1px solid #2c3e50;color:#666;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:.8rem;font-family:Sora,sans-serif;">← Cancelar e voltar</button>
+        <p style="color:#fff;font-weight:700;font-size:1rem;margin-bottom:8px;" id="hotmartStatusTexto">Abrindo Hotmart...</p>
+        <p style="color:#aaa;font-size:.82rem;margin-bottom:20px;" id="hotmartStatusSub">Complete o pagamento na aba do Hotmart. Seus tokens serão liberados automaticamente.</p>
+        <button onclick="fecharTokenModal()" style="background:none;border:1px solid #2c3e50;color:#666;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:.8rem;font-family:Sora,sans-serif;">← Fechar</button>
       </div>
 
-      <!-- TELA 3: sucesso -->
-      <div id="mpTelaSucesso" style="display:none;text-align:center;padding:16px 0;">
-        <div style="font-size:3rem;margin-bottom:12px;">🎉</div>
-        <p style="color:#4caf50;font-weight:700;font-size:1.1rem;margin-bottom:8px;">Pagamento confirmado!</p>
-        <p style="color:#aaa;font-size:.85rem;margin-bottom:16px;" id="mpSucessoMsg">Seus tokens foram adicionados à sua conta.</p>
-        <button onclick="fecharTokenModal()" style="background:#27ae60;border:none;color:#fff;border-radius:8px;padding:12px 28px;cursor:pointer;font-size:.9rem;font-weight:700;font-family:Sora,sans-serif;">✅ Começar a usar →</button>
-      </div>
-
-      <!-- TELA 4: erro -->
-      <div id="mpTelaErro" style="display:none;text-align:center;padding:16px 0;">
+      <!-- TELA: sucesso de configuração -->
+      <div id="hotmartTelaErro" style="display:none;text-align:center;padding:16px 0;">
         <div style="font-size:2.5rem;margin-bottom:12px;">⚠️</div>
-        <p style="color:#ef9a9a;font-weight:700;font-size:1rem;margin-bottom:8px;" id="mpErroTitulo">Não foi possível processar</p>
-        <p style="color:#aaa;font-size:.82rem;margin-bottom:16px;" id="mpErroMsg">Verifique sua conexão e tente novamente.</p>
-        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-          <button onclick="mpMostrarTela('escolha')" style="background:#1a5276;border:none;color:#fff;border-radius:6px;padding:10px 20px;cursor:pointer;font-size:.85rem;font-weight:600;font-family:Sora,sans-serif;">← Tentar novamente</button>
-          <button onclick="fecharTokenModal()" style="background:#2c3e50;border:none;color:#aaa;border-radius:6px;padding:10px 20px;cursor:pointer;font-size:.85rem;font-family:Sora,sans-serif;">Fechar</button>
-        </div>
+        <p style="color:#ef9a9a;font-weight:700;font-size:1rem;margin-bottom:8px;" id="hotmartErroTitulo">Hotmart não configurado</p>
+        <p style="color:#aaa;font-size:.82rem;margin-bottom:16px;" id="hotmartErroMsg">O administrador ainda não cadastrou o link de pagamento do Hotmart.</p>
+        <button onclick="fecharTokenModal()" style="background:#2c3e50;border:none;color:#aaa;border-radius:6px;padding:10px 20px;cursor:pointer;font-size:.85rem;font-family:Sora,sans-serif;">Fechar</button>
       </div>
 
     </div>
@@ -518,6 +510,22 @@ body{background:#e8e5db;background-image:repeating-linear-gradient(0deg,transpar
       </div>
     </div>
 
+    <!-- VERIFY EMAIL FORM -->
+    <div class="auth-panel" id="verifyPanel">
+      <div style="font-size:2.5rem;margin-bottom:8px;">📧</div>
+      <h2>Confirme seu e-mail</h2>
+      <p style="color:#aaa;margin-bottom:10px;">Enviamos um link de confirmação para</p>
+      <p style="color:#90caf9;font-weight:700;margin-bottom:20px;" id="verifyEmailShow"></p>
+      <div class="auth-err" id="verifyErr"></div>
+      <button class="auth-btn-primary" onclick="reenviarVerificacao()">🔄 Reenviar link</button>
+      <div style="margin-top:12px;text-align:center;">
+        <a href="#" onclick="confirmarVerificacao()" style="color:#90caf9;font-size:.82rem;text-decoration:none;">Já cliquei no link — entrar →</a>
+      </div>
+      <div style="margin-top:10px;text-align:center;">
+        <a href="#" onclick="showAuthTab('login')" style="color:#666;font-size:.74rem;text-decoration:none;">Trocar de conta</a>
+      </div>
+    </div>
+
     <!-- FOOTER -->
     <div class="auth-footer">
       <span>© 2026 Planejador BNCC Pro — Prof. Lafaiete Erkmann</span>
@@ -602,37 +610,21 @@ body{background:#e8e5db;background-image:repeating-linear-gradient(0deg,transpar
         <div class="admin-status info" id="adminKeyStatus" style="display:none;"></div>
       </div>
 
-      <!-- Mercado Pago -->
+      <!-- Hotmart -->
       <div class="admin-section">
-        <h3>💳 Mercado Pago — Configuração</h3>
+        <h3>🛒 Hotmart — Link de Pagamento</h3>
         <div style="background:#0f1923;border:1px solid #27ae60;border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:.76rem;color:#aaa;line-height:1.7;">
-          <strong style="color:#4caf50;">🔒 Modo seguro:</strong> O Access Token do MP fica <strong style="color:#fff;">somente no servidor</strong>.<br>
-          O frontend nunca toca sua chave — apenas fala com o seu backend via HTTPS.
+          <strong style="color:#4caf50;">💡 Como fazer:</strong> No produtor Hotmart, copie o <strong style="color:#fff;">link de checkout</strong> do produto (válido para uso externo) e cole abaixo. Ao comprar, o aluno é enviado ao checkout do Hotmart.<br>
+          Para liberação <strong style="color:#fff;">automática</strong> de tokens, habilite o webhook <code style="color:#f9c74f;">PURCHASE_APPROVED</code> apontando para o seu backend (opcional).
         </div>
         <div class="admin-field">
-          <label>URL do seu Backend (servidor Node.js)</label>
-          <input type="text" id="mpBackendUrl" placeholder="https://seu-backend.railway.app">
-          <span style="font-size:.7rem;color:#666;margin-top:4px;display:block;">
-            Configure o servidor com o arquivo <strong style="color:#aaa;">server.js</strong> fornecido junto com este sistema.
-            <a href="#" onclick="mpMostrarInstrucoesBackend()" style="color:#90caf9;">Ver instruções →</a>
-          </span>
+          <label>Link de checkout do Hotmart</label>
+          <input type="text" id="hotmartLink" placeholder="https://pay.hotmart.com/XXXXXXXXX?...">
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
-          <button class="btn-admin btn-admin-pri" onclick="adminSalvarConfigMp()">💾 Salvar URL</button>
-          <button class="btn-admin btn-admin-sec" onclick="adminTestarMp()">🧪 Testar conexão</button>
+          <button class="btn-admin btn-admin-pri" onclick="adminSalvarConfigHotmart()">💾 Salvar link</button>
         </div>
-        <div class="admin-status info" id="adminMpStatus" style="display:none;"></div>
-        <div id="mpInstrucoesBackend" style="display:none;margin-top:14px;background:#0a1020;border:1px solid #1a5276;border-radius:8px;padding:16px;">
-          <div style="color:#90caf9;font-weight:700;font-size:.82rem;margin-bottom:10px;">🚀 Como subir o backend (3 passos):</div>
-          <div style="color:#aaa;font-size:.76rem;line-height:2;">
-            <strong style="color:#fff;">1.</strong> Abra o arquivo <code style="color:#f9c74f;">server.js</code> e preencha as variáveis no topo<br>
-            <strong style="color:#fff;">2.</strong> Suba em qualquer hospedagem Node.js — sugestões gratuitas:<br>
-            &nbsp;&nbsp;&nbsp;• <a href="https://railway.app" target="_blank" style="color:#90caf9;">railway.app</a> — arraste a pasta, pronto<br>
-            &nbsp;&nbsp;&nbsp;• <a href="https://render.com" target="_blank" style="color:#90caf9;">render.com</a> — conecte o GitHub<br>
-            &nbsp;&nbsp;&nbsp;• <a href="https://fly.io" target="_blank" style="color:#90caf9;">fly.io</a> — com CLI<br>
-            <strong style="color:#fff;">3.</strong> Cole a URL gerada (ex: <code style="color:#f9c74f;">https://meu-app.railway.app</code>) no campo acima e salve
-          </div>
-        </div>
+        <div class="admin-status info" id="adminHotmartStatus" style="display:none;"></div>
       </div>
 
       <!-- Rascunhos -->
@@ -2261,235 +2253,54 @@ function fecharTokenModal(){
   document.getElementById('tokenOverlay').classList.remove('open');
 }
 
-// ===== MERCADO PAGO — FRONTEND SEGURO =====
-// O Access Token NUNCA toca o frontend.
-// Todo acesso à API do MP é feito pelo backend (server.js).
-// O frontend só fala com /api/* do nosso servidor.
+// ===== HOTMART — LINK DE PAGAMENTO =====
+// Sem servidor próprio: o frontend abre o checkout do Hotmart.
 
-// URL base do backend — configurada pelo admin no painel
-function getMpBackendUrl(){
-  try{return localStorage.getItem('bncc_backend_url')||'';}catch(e){return '';}
+function getHotmartLink(){
+  try{return (localStorage.getItem('bncc_hotmart_url')||'').trim();}catch(e){return '';}
 }
 
-// Estado da compra em andamento
-var MP_COMPRA_ATUAL = null;
-var MP_POLLING_TIMER = null;
-var MP_POLLING_COUNT = 0;
-
-function mpMostrarTela(tela){
-  ['Escolha','Aguardando','Sucesso','Erro'].forEach(function(t){
-    document.getElementById('mpTela'+t).style.display='none';
+function hotmartMostrarTela(tela){
+  ['Escolha','Aguardando','Erro'].forEach(function(t){
+    document.getElementById('hotmartTela'+t).style.display='none';
   });
-  var mapa={escolha:'Escolha',aguardando:'Aguardando',sucesso:'Sucesso',erro:'Erro'};
-  document.getElementById('mpTela'+(mapa[tela]||'Escolha')).style.display='block';
-  document.getElementById('tokenBtnFechar').style.display=(tela==='aguardando')?'none':'inline-block';
+  var mapa={escolha:'Escolha',aguardando:'Aguardando',erro:'Erro'};
+  document.getElementById('hotmartTela'+(mapa[tela]||'Escolha')).style.display='block';
+  document.getElementById('tokenBtnFechar').style.display='inline-block';
 }
 
-async function iniciarCompraMp(qtd, valorCentavos, titulo){
+function abrirHotmart(qtd){
   if(!PROFESSOR_ATUAL){alert('Faça login para continuar.');return;}
-
-  var base=getMpBackendUrl();
-  if(!base){
-    mpMostrarErro(
-      'Backend não configurado',
-      'O administrador ainda não configurou o servidor de pagamentos. Configure a URL do backend no painel admin.'
-    );
-    mpMostrarTela('erro');
-    document.getElementById('tokenOverlay').classList.add('open');
+  document.getElementById('tokenOverlay').classList.add('open');
+  var link=getHotmartLink();
+  if(!link){
+    hotmartMostrarTela('erro');
+    document.getElementById('hotmartErroTitulo').textContent='Hotmart não configurado';
+    document.getElementById('hotmartErroMsg').textContent='O administrador ainda não cadastrou o link de pagamento do Hotmart no painel administrativo.';
     return;
   }
-
-  // Referência única e não-adivinhável para esta transação
-  var ref='BNCC_'+PROFESSOR_ATUAL.id+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
-
-  MP_COMPRA_ATUAL={ref:ref, qtd:qtd, valorCentavos:valorCentavos, titulo:titulo};
-  MP_POLLING_COUNT=0;
-
-  document.getElementById('mpResumoCompra').textContent=
-    titulo+' — R$ '+(valorCentavos/100).toFixed(2).replace('.',',');
-  document.getElementById('mpStatusTexto').textContent='Conectando ao servidor...';
-  document.getElementById('mpStatusSub').textContent='Preparando o pagamento seguro...';
-  document.getElementById('mpPollingStatus').textContent='';
-  mpMostrarTela('aguardando');
-
-  try{
-    // Pedir ao NOSSO backend para criar a preferência no MP
-    var resp=await fetch(base+'/api/mp/criar-preferencia',{
-      method:'POST',
-      headers:(function(){var h={'Content-Type':'application/json'};if(SESSION_TOKEN)h.Authorization='Bearer '+SESSION_TOKEN;return h;})(),
-      body:JSON.stringify({
-        titulo: titulo+' — Planejador BNCC',
-        valor_centavos: valorCentavos,
-        ref_externa: ref,
-        qtd_tokens: qtd,
-        professor_id: String(PROFESSOR_ATUAL.id),
-        professor_email: PROFESSOR_ATUAL.email
-      })
-    });
-
-    if(!resp.ok){
-      var errJson=await resp.json().catch(function(){return {erro:'Erro desconhecido'};});
-      throw new Error(errJson.erro||'Servidor retornou '+resp.status);
-    }
-
-    var data=await resp.json();
-    if(!data.init_point) throw new Error('Resposta inválida do servidor');
-
-    // Salvar referência pendente (para recuperar se fechar e voltar)
-    try{localStorage.setItem('bncc_mp_pendente',JSON.stringify(MP_COMPRA_ATUAL));}catch(e){}
-
-    // Abrir checkout oficial do Mercado Pago
-    var win=window.open(data.init_point,'_blank');
-
-    if(!win){
-      document.getElementById('mpStatusTexto').textContent='Popup bloqueado pelo navegador';
-      document.getElementById('mpStatusSub').innerHTML=
-        '<a href="'+data.init_point+'" target="_blank" style="color:#90caf9;font-weight:700;">👉 Clique aqui para abrir o pagamento</a>';
-    } else {
-      document.getElementById('mpStatusTexto').textContent='Aguardando confirmação do pagamento...';
-      document.getElementById('mpStatusSub').textContent=
-        'Finalize o pagamento na aba do Mercado Pago. Seus tokens serão liberados automaticamente assim que aprovado.';
-    }
-
-    // Polling no NOSSO backend (ele consulta o MP com segurança)
-    iniciarPollingMp(ref, qtd, base);
-
-  }catch(err){
-    console.error('MP frontend erro:',err);
-    mpMostrarErro('Erro ao iniciar pagamento', err.message);
-  }
+  var sep=link.indexOf('?')>-1?'&':'?';
+  var url=link+sep+'bncc_qtd='+qtd+'&email='+encodeURIComponent(PROFESSOR_ATUAL.email);
+  var win=window.open(url,'_blank');
+  document.getElementById('hotmartStatusTexto').textContent='Abrindo Hotmart...';
+  document.getElementById('hotmartStatusSub').innerHTML=
+    'Finalize a compra na aba do Hotmart. Seus 🎟️ tokens serão liberados assim que o pagamento for confirmado.<br><br>'+
+    '<a href="'+url+'" target="_blank" style="color:#90caf9;font-weight:700;">👉 Não abriu a janela? Clique aqui</a>';
+  hotmartMostrarTela('aguardando');
 }
 
-function iniciarPollingMp(ref, qtd, base){
-  clearInterval(MP_POLLING_TIMER);
-  MP_POLLING_COUNT=0;
-
-  MP_POLLING_TIMER=setInterval(async function(){
-    MP_POLLING_COUNT++;
-    var dots='.'.repeat((MP_POLLING_COUNT%3)+1);
-    document.getElementById('mpPollingStatus').textContent=
-      '🔄 Verificando pagamento'+dots+' ('+MP_POLLING_COUNT+'s)';
-
-    // Timeout 15 min
-    if(MP_POLLING_COUNT>900){
-      clearInterval(MP_POLLING_TIMER);
-      mpMostrarErro(
-        'Tempo esgotado',
-        'O pagamento não foi confirmado em 15 minutos. Se você já pagou, entre em contato com o suporte informando: '+ref
-      );
-      return;
-    }
-
-    try{
-      var r=await fetch(base+'/api/mp/verificar/'+encodeURIComponent(ref),{headers:(function(){var h={};if(SESSION_TOKEN)h.Authorization='Bearer '+SESSION_TOKEN;return h;})()});
-      if(!r.ok) return; // servidor indisponível — continua tentando
-      var d=await r.json();
-      if(d.aprovado){
-        clearInterval(MP_POLLING_TIMER);
-        liberarTokensFrontend(qtd, ref);
-      }
-    }catch(e){
-      // Falha silenciosa — continua polling
-    }
-  }, 2000); // verificar a cada 2s
+// Admin: salvar link do Hotmart
+function adminSalvarConfigHotmart(){
+  var url=document.getElementById('hotmartLink').value.trim();
+  if(!url){adminStatus('adminHotmartStatus','err','Informe o link do Hotmart.');return;}
+  if(!/^https?:\/\//.test(url)){adminStatus('adminHotmartStatus','err','Link inválido. Deve começar com http:// ou https://');return;}
+  try{localStorage.setItem('bncc_hotmart_url',url);}catch(e){}
+  adminStatus('adminHotmartStatus','ok','✅ Link do Hotmart salvo!');
 }
 
-function liberarTokensFrontend(qtd, ref){
-  if(!PROFESSOR_ATUAL) return;
-  var d=getTokenData(PROFESSOR_ATUAL.id);
-  d.tokens=(d.tokens||0)+qtd;
-  if(!d.historico) d.historico=[];
-  d.historico.push({ref:ref,qtd:qtd,data:new Date().toISOString(),via:'mercadopago'});
-  setTokenData(PROFESSOR_ATUAL.id,d);
-  try{localStorage.removeItem('bncc_mp_pendente');}catch(e){}
-  MP_COMPRA_ATUAL=null;
-  atualizarUsoBadge();
-  document.getElementById('mpSucessoMsg').textContent=
-    qtd+' tokens adicionados! Você agora tem '+getPlanosRestantes()+' plano(s) disponível(is).';
-  mpMostrarTela('sucesso');
+function adminCarregarConfigHotmart(){
+  document.getElementById('hotmartLink').value=getHotmartLink()||'';
 }
-
-function mpMostrarErro(titulo, msg){
-  clearInterval(MP_POLLING_TIMER);
-  document.getElementById('mpErroTitulo').textContent=titulo;
-  document.getElementById('mpErroMsg').textContent=msg;
-  mpMostrarTela('erro');
-}
-
-function cancelarCompraMp(){
-  clearInterval(MP_POLLING_TIMER);
-  MP_COMPRA_ATUAL=null;
-  try{localStorage.removeItem('bncc_mp_pendente');}catch(e){}
-  mpMostrarTela('escolha');
-}
-
-// Verificar retorno do MP via back_url (após redirect)
-function verificarRetornoMp(){
-  var params=new URLSearchParams(window.location.search);
-  var status=params.get('mp_status');
-  var ref=params.get('mp_ref');
-  var qtd=parseInt(params.get('mp_qtd'))||0;
-  if(!status||!ref) return;
-  history.replaceState(null,'',window.location.pathname);
-  if(status==='approved'&&qtd>0){
-    liberarTokensFrontend(qtd,ref);
-    abrirTokenModal(false);
-    mpMostrarTela('sucesso');
-  } else if(status==='rejected'){
-    abrirTokenModal(false);
-    mpMostrarErro('Pagamento recusado','Tente outro método ou entre em contato com o suporte.');
-  } else if(status==='pending'){
-    abrirTokenModal(false);
-    document.getElementById('mpStatusTexto').textContent='Pagamento em processamento';
-    document.getElementById('mpStatusSub').textContent=
-      'Seu pagamento está sendo processado (ex: boleto). Os tokens serão liberados assim que confirmado.';
-    mpMostrarTela('aguardando');
-    var base=getMpBackendUrl();
-    if(base&&ref) iniciarPollingMp(ref,qtd,base);
-  }
-}
-
-// Admin: salvar URL do backend
-function adminSalvarConfigMp(){
-  var url=document.getElementById('mpBackendUrl').value.trim();
-  if(!url){adminStatus('adminMpStatus','err','Informe a URL do backend.');return;}
-  if(!url.startsWith('http')){adminStatus('adminMpStatus','err','URL inválida. Deve começar com http:// ou https://');return;}
-  // Remover barra final
-  url=url.replace(/\/+$/,'');
-  try{localStorage.setItem('bncc_backend_url',url);}catch(e){}
-  adminStatus('adminMpStatus','ok','✅ URL do backend salva: '+url);
-}
-
-async function adminTestarMp(){
-  var base=getMpBackendUrl();
-  if(!base){adminStatus('adminMpStatus','err','Salve a URL do backend primeiro.');return;}
-  adminStatus('adminMpStatus','info','🔄 Testando conexão com o backend...');
-  try{
-    var r=await fetch(base+'/api/status',{signal:AbortSignal.timeout(5000),headers:(function(){var h={};if(SESSION_TOKEN)h.Authorization='Bearer '+SESSION_TOKEN;return h;})()});
-    var d=await r.json();
-    if(d.ok){
-      adminStatus('adminMpStatus','ok','✅ Backend conectado! MP user: '+( d.mp_user||'OK'));
-    } else {
-      adminStatus('adminMpStatus','err','Backend respondeu mas retornou erro: '+JSON.stringify(d));
-    }
-  }catch(e){
-    adminStatus('adminMpStatus','err','Não foi possível conectar: '+e.message);
-  }
-}
-
-function adminCarregarConfigMp(){
-  var url=getMpBackendUrl();
-  document.getElementById('mpBackendUrl').value=url||'';
-}
-
-function mpMostrarInstrucoesBackend(){
-  var el=document.getElementById('mpInstrucoesBackend');
-  el.style.display=el.style.display==='none'?'block':'none';
-}
-
-// Legado (não usado)
-function getMpConfig(){return{};}
-function setMpConfig(){}
 
 // Admin: conceder tokens a um professor
 function adminConcederTokens(emailProf, qtd){
@@ -2514,34 +2325,80 @@ function adminResetarUso(emailProf){
   alert('✅ Uso gratuito resetado para '+prof.nome+'.');
 }
 
-// ===== SISTEMA DE AUTENTICAÇÃO DE PROFESSORES =====
+// ===== SISTEMA DE AUTENTICAÇÃO (FIREBASE — GRATUITO) =====
 var IS_ADMIN = false;
 var PROFESSOR_ATUAL = null;
-var SESSION_TOKEN = '';
+var EMAIL_ADMIN = 'lafaietep@gmail.com'; // e-mail do administrador do sistema
 
-function getApiBase(){
-  try{return (localStorage.getItem('bncc_backend_url')||'').replace(/\/+$/,'');}catch(e){return '';}
+// ⚙️ CONFIG DO FIREBASE — cole aqui as chaves do seu projeto
+// Crie um projeto em https://console.firebase.google.com → Adicionar projeto
+// → Ativar "E-mail/senha" em Authentication → Google → web app → copiar config.
+var FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyC1E4cYMYoxwVyDTy6Vbz6Z1jgZXWk_9jU',
+  authDomain: 'plan-sc-ecb9d.firebaseapp.com',
+  projectId: 'plan-sc-ecb9d'
+};
+var FIREBASE_AUTH = null;
+try{
+  if(window.firebase && FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey.indexOf('COLE_AQUI')===-1){
+    firebase.initializeApp(FIREBASE_CONFIG);
+    FIREBASE_AUTH = firebase.auth();
+    FIREBASE_AUTH.useDeviceLanguage();
+  }
+}catch(e){ console.warn('Firebase não inicializado:',e); }
+
+function firebaseOk(){ return !!(window.firebase && FIREBASE_AUTH); }
+
+function msgErroFirebase(e){
+  var map={
+    'auth/email-already-in-use':'Este e-mail já está cadastrado. Faça login ou use outro e-mail.',
+    'auth/invalid-email':'E-mail inválido.',
+    'auth/weak-password':'A senha deve ter no mínimo 6 caracteres.',
+    'auth/user-not-found':'Nenhum cadastro encontrado com este e-mail.',
+    'auth/wrong-password':'Senha incorreta.',
+    'auth/invalid-credential':'E-mail ou senha incorretos.',
+    'auth/too-many-requests':'Muitas tentativas. Aguarde alguns minutos e tente novamente.',
+    'auth/network-request-failed':'Sem conexão com a internet. Tente novamente.',
+    'auth/email-change-needs-verification':'Confirme seu e-mail antes de continuar.',
+    'auth/requires-recent-login':'Reinicie a sessão (saia e entre novamente) antes de trocar a senha.'
+  };
+  return map[e.code]||(e.message||'Erro inesperado. Tente novamente.');
 }
 
-async function apiFetch(path, opts){
-  var base=getApiBase();
-  if(!base) throw new Error('Backend não configurado.');
-  var cfg=opts||{};
-  cfg.headers=cfg.headers||{};
-  if(SESSION_TOKEN) cfg.headers['Authorization']='Bearer '+SESSION_TOKEN;
-  var resp=await fetch(base+path,cfg);
-  var data=await resp.json().catch(function(){return {};});
-  if(!resp.ok) throw new Error(data.error||('Erro '+resp.status));
-  return data;
+// URL que o Firebase abre depois que o usuário confirmar o e-mail
+function getVerificationUrl(){
+  return {url: window.location.origin + window.location.pathname};
 }
 
-// ── FUNÇÕES AUXILIARES ──────────────────────────────────────────────────────
+// ── FUNÇÕES AUXILIARES — cadastro de perfis (NUNCA guarda senha) ─────────────
 function getProfessores(){
   try{return JSON.parse(localStorage.getItem('bncc_professores'))||[];}
   catch(e){return [];}
 }
 function setProfessores(lista){
   try{localStorage.setItem('bncc_professores',JSON.stringify(lista));}catch(e){}
+}
+function buscarPerfil(uid){
+  return getProfessores().find(function(p){return p.id===uid;})||null;
+}
+function registrarPerfil(uid, dados){
+  var lista=getProfessores();
+  var idx=lista.findIndex(function(p){return p.id===uid;});
+  var novo={id:uid,nome:dados.nome||'',email:dados.email||'',disciplina:dados.disciplina||'',escola:dados.escola||'',cidade:dados.cidade||'',dataCadastro:dados.dataCadastro||new Date().toISOString()};
+  if(idx>-1){lista[idx]=novo;}else{lista.push(novo);}
+  setProfessores(lista);
+  return novo;
+}
+function limparCadastrosLocais(){
+  // Remove regras e cadastros antigos guardados no navegador.
+  // Só roda UMA vez (migração v1 → v2 com Firebase).
+  try{
+    if(localStorage.getItem('bncc_migrado_v2')) return;
+    ['bncc_professores','bncc_sessao_atual','bncc_admin_code','bncc_backend_url','bncc_session_token'].forEach(function(k){
+      localStorage.removeItem(k);
+    });
+    localStorage.setItem('bncc_migrado_v2','1');
+  }catch(e){}
 }
 
 // ── TABS DO AUTH ─────────────────────────────────────────────────────────────
@@ -2552,13 +2409,23 @@ function showAuthTab(tab){
   if(tab==='login'){
     document.querySelectorAll('.auth-tab')[0].classList.add('active');
     document.getElementById('loginPanel').classList.add('active');
-  } else {
+    document.getElementById('loginErr').textContent='';
+  } else if(tab==='register'){
     document.querySelectorAll('.auth-tab')[1].classList.add('active');
     document.getElementById('registerPanel').classList.add('active');
+    document.getElementById('regErr').textContent='';
+  } else if(tab==='verify'){
+    document.querySelectorAll('.auth-tab')[0].classList.add('active');
+    document.getElementById('verifyPanel').classList.add('active');
+    document.getElementById('verifyErr').textContent='';
   }
 }
 
-// ── CADASTRO ─────────────────────────────────────────────────────────────────
+// ── CADASTRO (via Firebase + confirmação por e-mail) ───────────────────────
+function validarEmail(email){
+  return /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/.test(email);
+}
+
 async function fazerCadastro(){
   var nome=document.getElementById('regNome').value.trim();
   var email=document.getElementById('regEmail').value.trim().toLowerCase();
@@ -2568,13 +2435,13 @@ async function fazerCadastro(){
   var escola=document.getElementById('regEscola').value.trim();
   var cidade=document.getElementById('regCidade').value.trim();
   var errEl=document.getElementById('regErr');
-  
+
   if(!nome||!email||!senha){
-    errEl.textContent='⚠️ Preencha todos os campos obrigatórios (Nome, Email e Senha).';
+    errEl.textContent='⚠️ Preencha todos os campos obrigatórios (Nome, E-mail e Senha).';
     return;
   }
-  if(!email.includes('@')||!email.includes('.')){
-    errEl.textContent='⚠️ Email inválido.';
+  if(!validarEmail(email)){
+    errEl.textContent='⚠️ E-mail inválido. Use o formato exemplo@escola.com';
     return;
   }
   if(senha.length<6){
@@ -2585,74 +2452,148 @@ async function fazerCadastro(){
     errEl.textContent='⚠️ As senhas não coincidem.';
     return;
   }
-  
-  try{
-    var base=getApiBase();
-    if(base){
-      await apiFetch('/api/auth/register',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({name:nome,email:email,password:senha,disciplina:disciplina,escola:escola,cidade:cidade})
-      });
-      await fazerLogin();
-      return;
-    }
-  }catch(e){
-    errEl.textContent='⚠️ '+e.message;
+  if(!firebaseOk()){
+    errEl.textContent='⚠️ Sistema de cadastro ainda não configurado. O administrador precisa colar as chaves do Firebase no código.';
     return;
   }
 
-  var professores=getProfessores();
-  if(professores.find(function(p){return p.email===email;})){
-    errEl.textContent='⚠️ Este email já está cadastrado. Faça login ou use outro email.';
+  // Remove regras e cadastros antigos guardados no navegador (migração limpa)
+  limparCadastrosLocais();
+
+  try{
+    var cred=await FIREBASE_AUTH.createUserWithEmailAndPassword(email,senha);
+    var user=cred.user;
+    try{await user.updateProfile({displayName:nome});}catch(_){}
+    // Guarda dados do professor (sem senha) para concluir após a confirmação
+    try{localStorage.setItem('bncc_pendente_'+user.uid,JSON.stringify({nome:nome,email:email,disciplina:disciplina,escola:escola,cidade:cidade}));}catch(_){}
+  }catch(e){
+    errEl.textContent='⚠️ '+msgErroFirebase(e);
     return;
   }
-  var novoProfessor={id:Date.now(),nome:nome,email:email,senha:btoa(senha),disciplina:disciplina,escola:escola,cidade:cidade,dataCadastro:new Date().toISOString(),planosSalvos:0};
-  professores.push(novoProfessor);
-  setProfessores(professores);
+
+  // Envia o link de confirmação por e-mail
+  try{
+    await FIREBASE_AUTH.currentUser.sendEmailVerification(getVerificationUrl());
+  }catch(e){}
+
   errEl.textContent='';
-  alert('✅ Conta criada com sucesso!');
-  loginProfessor(novoProfessor);
+  mostrarVerifyPanel(email);
 }
 
-// ── LOGIN ────────────────────────────────────────────────────────────────────
+// ── TELA DE CONFIRMAÇÃO DE E-MAIL ─────────────────────────────────────────
+function mostrarVerifyPanel(email){
+  document.getElementById('verifyEmailShow').textContent=email;
+  document.getElementById('verifyErr').textContent='';
+  document.getElementById('authOverlay').classList.add('open');
+  showAuthTab('verify');
+}
+
+async function reenviarVerificacao(){
+  var errEl=document.getElementById('verifyErr');
+  if(!FIREBASE_AUTH||!FIREBASE_AUTH.currentUser){
+    errEl.textContent='⚠️ Nenhuma conta pendente foi encontrada.';
+    return;
+  }
+  try{
+    await FIREBASE_AUTH.currentUser.sendEmailVerification(getVerificationUrl());
+    errEl.textContent='✅ Link reenviado! Confira sua caixa de entrada (e o spam).';
+  }catch(e){
+    errEl.textContent='⚠️ '+msgErroFirebase(e);
+  }
+}
+
+function confirmarVerificacao(){
+  var errEl=document.getElementById('verifyErr');
+  if(!FIREBASE_AUTH||!FIREBASE_AUTH.currentUser){
+    errEl.textContent='⚠️ Você ainda não está conectado.';
+    return;
+  }
+  FIREBASE_AUTH.currentUser.reload().then(function(){
+    if(FIREBASE_AUTH.currentUser.emailVerified){
+      errEl.textContent='';
+      processarUsuarioLogado(FIREBASE_AUTH.currentUser);
+    } else {
+      errEl.textContent='⚠️ Seu e-mail ainda não foi confirmado. Abra o link que enviamos ou clique em "Reenviar link".';
+    }
+  }).catch(function(e){
+    errEl.textContent='⚠️ '+msgErroFirebase(e);
+  });
+}
+
+// ── LOGIN (via Firebase) ─────────────────────────────────────────────────────
 async function fazerLogin(){
   var email=document.getElementById('loginEmail').value.trim().toLowerCase();
   var senha=document.getElementById('loginSenha').value;
   var errEl=document.getElementById('loginErr');
 
-  if(!email||!senha){ errEl.textContent='⚠️ Preencha email e senha.'; return; }
+  if(!email||!senha){ errEl.textContent='⚠️ Preencha e-mail e senha.'; return; }
+  if(!validarEmail(email)){ errEl.textContent='⚠️ E-mail inválido.'; return; }
+  if(!firebaseOk()){
+    errEl.textContent='⚠️ Sistema de login ainda não configurado. O administrador precisa colar as chaves do Firebase no código.';
+    return;
+  }
 
   try{
-    var base=getApiBase();
-    if(base){
-      var data=await apiFetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,password:senha})});
-      SESSION_TOKEN=data.token||'';
-      localStorage.setItem('bncc_session_token',SESSION_TOKEN);
-      var professor={id:data.user.id,nome:data.user.name,email:data.user.email,disciplina:'',escola:'',cidade:'',role:data.user.role};
-      errEl.textContent='';
-      loginProfessor(professor);
-      return;
-    }
-  }catch(e){ errEl.textContent='⚠️ '+e.message; return; }
-
-  var professores=getProfessores();
-  var professor=professores.find(function(p){return p.email===email&&atob(p.senha)===senha;});
-  if(!professor){ errEl.textContent='⚠️ Email ou senha incorretos. Tente novamente.'; document.getElementById('loginSenha').value=''; return; }
-  errEl.textContent='';
-  loginProfessor(professor);
+    await FIREBASE_AUTH.signInWithEmailAndPassword(email,senha);
+    errEl.textContent='';
+    // o onAuthStateChanged cuida do que vem depois (verificação + login)
+  }catch(e){
+    errEl.textContent='⚠️ '+msgErroFirebase(e);
+    document.getElementById('loginSenha').value='';
+  }
 }
+
+// Conclui o login quando o usuário está autenticado E com e-mail confirmado
+function processarUsuarioLogado(user){
+  if(!user.emailVerified){
+    mostrarVerifyPanel(user.email);
+    return;
+  }
+
+  var uid=user.uid;
+  var pend=null;
+  try{pend=JSON.parse(localStorage.getItem('bncc_pendente_'+uid)||'null');}catch(e){}
+  var perfil=buscarPerfil(uid)||{};
+
+  var dados={
+    nome:user.displayName||(pend&&pend.nome)||perfil.nome||user.email,
+    email:user.email||'',
+    disciplina:(pend&&pend.disciplina)||perfil.disciplina||'',
+    escola:(pend&&pend.escola)||perfil.escola||'',
+    cidade:(pend&&pend.cidade)||perfil.cidade||'',
+    dataCadastro:perfil.dataCadastro||new Date().toISOString()
+  };
+  var final=registrarPerfil(uid,dados);
+  try{localStorage.removeItem('bncc_pendente_'+uid);}catch(e){}
+  loginProfessor(final);
+}
+
+// Monitora o estado de login em tempo real (sessão é restaurada sozinha)
+FIREBASE_AUTH && FIREBASE_AUTH.onAuthStateChanged(function(user){
+  if(user){
+    if(!user.emailVerified){
+      mostrarVerifyPanel(user.email);
+    } else {
+      processarUsuarioLogado(user);
+    }
+  } else {
+    resetUI();
+    document.getElementById('authOverlay').classList.add('open');
+    showAuthTab('login');
+  }
+});
 
 function loginProfessor(professor){
   PROFESSOR_ATUAL=professor;
-  IS_ADMIN=(professor.email==='lafaietep@gmail.com');
-  
+  IS_ADMIN=(professor.email===EMAIL_ADMIN);
+  if(!professor.disciplina) professor.disciplina='';
+
   document.getElementById('authOverlay').classList.remove('open');
   document.getElementById('perfilBadge').style.display='inline-block';
   document.getElementById('perfilNome').textContent='👤 Prof. '+professor.nome;
   document.getElementById('btnAdminPanel').style.display=IS_ADMIN?'inline-block':'none';
-  
-  localStorage.setItem('bncc_sessao_atual',JSON.stringify(professor));
+
+  try{localStorage.setItem('bncc_sessao_atual',JSON.stringify(professor));}catch(e){}
   atualizarUsoBadge();
   iniciarSistema();
 
@@ -2666,20 +2607,37 @@ function loginProfessor(professor){
   console.log('✅ Login:',professor.nome,'('+professor.email+')');
 }
 
-function fazerLogout(){
-  if(!confirm('Deseja realmente sair?'))return;
+function resetUI(){
   PROFESSOR_ATUAL=null;
   IS_ADMIN=false;
-  localStorage.removeItem('bncc_sessao_atual');
-  localStorage.removeItem('bncc_session_token');
-  SESSION_TOKEN='';
+  try{localStorage.removeItem('bncc_sessao_atual');}catch(e){}
+  try{localStorage.removeItem('bncc_session_token');}catch(e){}
   document.getElementById('perfilBadge').style.display='none';
   document.getElementById('btnAdminPanel').style.display='none';
-  document.getElementById('authOverlay').classList.add('open');
-  showAuthTab('login');
   document.getElementById('loginEmail').value='';
   document.getElementById('loginSenha').value='';
   document.getElementById('loginErr').textContent='';
+  document.getElementById('regErr').textContent='';
+  document.getElementById('verifyErr').textContent='';
+}
+
+function fazerLogout(){
+  if(!confirm('Deseja realmente sair?'))return;
+  if(FIREBASE_AUTH){
+    FIREBASE_AUTH.signOut().then(function(){
+      resetUI();
+      document.getElementById('authOverlay').classList.add('open');
+      showAuthTab('login');
+    }).catch(function(){
+      resetUI();
+      document.getElementById('authOverlay').classList.add('open');
+      showAuthTab('login');
+    });
+  } else {
+    resetUI();
+    document.getElementById('authOverlay').classList.add('open');
+    showAuthTab('login');
+  }
 }
 
 function editarPerfil(){
@@ -2722,7 +2680,6 @@ function iniciarSistema(){
   try{
     var k=localStorage.getItem('groq_api_key');
     if(k){window.GROQ_KEY=k;}
-    SESSION_TOKEN=localStorage.getItem('bncc_session_token')||'';
   }catch(e){}
   
   if(PROFESSOR_ATUAL){
@@ -2739,9 +2696,6 @@ function iniciarSistema(){
   
   document.getElementById('dataInicio').value=new Date().toISOString().split('T')[0];
   ensureHabs(); renderHabTabs();
-  
-  // Verificar se voltou de um pagamento MP
-  setTimeout(verificarRetornoMp, 500);
 }
 
 // ── ADMIN ────────────────────────────────────────────────────────────────────
@@ -2751,7 +2705,7 @@ function abrirAdmin(){
   document.getElementById('adminKeyInput').value=k?'(chave salva — oculta por segurança)':'';
   document.getElementById('adminOverlay').classList.add('open');
   adminListarRascunhos();
-  adminCarregarConfigMp();
+  adminCarregarConfigHotmart();
 }
 
 function fecharAdmin(){
@@ -2837,22 +2791,17 @@ function adminVerUsoProfessor(){
 function adminTrocarSenha(){
   var n1=document.getElementById('adminNovaSenha').value.trim();
   var n2=document.getElementById('adminConfSenha').value.trim();
-  if(!n1||n1.length<4){adminStatus('adminSenhaStatus','err','Mínimo 4 caracteres.');return;}
+  if(!n1||n1.length<6){adminStatus('adminSenhaStatus','err','Mínimo 6 caracteres.');return;}
   if(n1!==n2){adminStatus('adminSenhaStatus','err','Senhas não coincidem.');return;}
-  var professores=getProfessores();
-  var idx=professores.findIndex(function(p){return p.email==='lafaietep@gmail.com';});
-  if(idx>-1){
-    professores[idx].senha=btoa(n1);
-    setProfessores(professores);
-    if(PROFESSOR_ATUAL&&PROFESSOR_ATUAL.email==='lafaietep@gmail.com'){
-      PROFESSOR_ATUAL.senha=btoa(n1);
-      localStorage.setItem('bncc_sessao_atual',JSON.stringify(PROFESSOR_ATUAL));
-    }
-  }
-  try{localStorage.setItem('bncc_admin_code',n1);}catch(e){}
-  document.getElementById('adminNovaSenha').value='';
-  document.getElementById('adminConfSenha').value='';
-  adminStatus('adminSenhaStatus','ok','&#x2705; Senha do superusu&aacute;rio alterada com sucesso!');
+  if(!FIREBASE_AUTH||!FIREBASE_AUTH.currentUser){adminStatus('adminSenhaStatus','err','Você precisa estar logado.');return;}
+
+  FIREBASE_AUTH.currentUser.updatePassword(n1).then(function(){
+    document.getElementById('adminNovaSenha').value='';
+    document.getElementById('adminConfSenha').value='';
+    adminStatus('adminSenhaStatus','ok','&#x2705; Senha alterada com sucesso!');
+  }).catch(function(e){
+    adminStatus('adminSenhaStatus','err','&#x26a0;&#xfe0f; '+msgErroFirebase(e));
+  });
 }
 
 function togglePw(fieldId, btn){
@@ -2881,38 +2830,22 @@ function salvarChaveGemini(){adminSalvarChave();}
 
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded',function(){
-  // Garantir que o superusuario existe
-  (function(){
-    var professores=getProfessores();
-    var existe=professores.find(function(p){return p.email==='lafaietep@gmail.com';});
-    if(!existe){
-      var superAdmin={
-        id:1000000001,
-        nome:'Prof. Lafaiete Erkmann',
-        email:'lafaietep@gmail.com',
-        senha:btoa('lilica10'),
-        disciplina:'Administrador',
-        escola:'Sistema',
-        cidade:'',
-        dataCadastro:new Date().toISOString(),
-        planosSalvos:0
-      };
-      professores.unshift(superAdmin);
-      setProfessores(professores);
-    }
-  })();
-
   filterSkills();
-  var sessaoSalva=localStorage.getItem('bncc_sessao_atual');
-  if(sessaoSalva){
-    try{
-      var prof=JSON.parse(sessaoSalva);
-      var professores=getProfessores();
-      var existe=professores.find(function(p){return p.id===prof.id;});
-      if(existe){loginProfessor(existe);return;}
-    }catch(e){}
+
+  // Limpar cadastros e regras de cadastro antigos (v1: senha em base64 + admin semeador)
+  // Remova esta chamada depois que todos os usuários antigos migrarem.
+  limparCadastrosLocais();
+
+  if(!firebaseOk()){
+    document.getElementById('authOverlay').classList.add('open');
+    showAuthTab('login');
+    var el=document.getElementById('loginErr');
+    el.textContent='⚠️ Autenticação não configurada. Cole as chaves do Firebase no início do script (FIREBASE_CONFIG).';
+    return;
   }
-  document.getElementById('authOverlay').classList.add('open');
+
+  // Sessão é restaurada pelo onAuthStateChanged do Firebase (acima).
+  // Se ninguém estiver logado, o painel de login é exibido automaticamente.
 });
 </script>
 
