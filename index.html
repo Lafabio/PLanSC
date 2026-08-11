@@ -1580,6 +1580,20 @@ function renderDropdownHab(habIdx, skills){
 }
 
 // ── Selecionar habilidade em uma aba ──
+// Dissecação local sem IA (fallback): verbo + objeto (resto da frase) + finalidade inferida
+function dissecarHabilidade(texto, verbo){
+  if(!texto){ return {verbo:'—',objeto:'—',finalidade:'—'}; }
+  var v=(verbo||'').trim()||'desenvolver';
+  var body=texto.trim();
+  var re=new RegExp('^\\s*'+v.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s*,?\\s*','i');
+  var objeto=body.replace(re,'').trim();
+  if(!objeto||objeto.toLowerCase().indexOf(v.toLowerCase())>-1) objeto=body;
+  var pm=body.match(/\bpara\s+([^.,;\n]+)/i);
+  var finalidade=pm
+    ? pm[1].trim().replace(/[.,;]+$/,'')+' (inferido da habilidade).'
+    : 'Promover aprendizagem significativa e o desenvolvimento integral do estudante por meio do exercício da '+v.toLowerCase()+'.';
+  return {verbo:v,objeto:objeto,finalidade:finalidade};
+}
 function selectSkillHab(habIdx, cod){
   var h = HABILIDADES_DB.find(function(x){return x.cod===cod;});
   if(!h) return;
