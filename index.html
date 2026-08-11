@@ -1652,17 +1652,21 @@ function getHabText(){
   return parts.join('\n\n');
 }
 
-// ── habInfoAll — info de TODAS as habilidades (garante a digital integrada no planejamento IA) ──
+// ── habInfoSingle — info de UMA habilidade (para prompts IA) ──
+function habInfoSingle(h){
+  if(h.currentHab && h.currentHab.texto){
+    var ch = h.currentHab;
+    var extra = h.digEixo ? 'Eixo da Computação: '+h.digEixo+(h.digSerie?(' ('+h.digSerie+')'):'')+'\n' : '';
+    return 'Código: '+ch.cod+'\nEtapa/Ano: '+(ch.ano||ch.etapa||'Ensino Médio')+'\nComponente: '+(ch.comp||'')+'\n'+(extra||'')+'Habilidade: '+ch.texto+'\nNível de Bloom: '+h.bloomLevel+' — '+bloomNames[h.bloomLevel]+'\nVerbo: '+(ch.verbo||'');
+  }
+  return 'Código: '+(h.codManual||'não informado')+'\nHabilidade: '+(h.habManual||'não informada');
+}
+// habInfoAll — info de TODAS as habilidades (garante a digital integrada no planejamento IA) ──
 function habInfoAll(){
   ensureHabs();
   var infos = ST.habilidades.map(function(h,i){
     var prefix = ST.habilidades.length>1 ? 'Habilidade '+(i+1)+' — ' : '';
-    if(h.currentHab && h.currentHab.texto){
-      var ch = h.currentHab;
-      var extra = h.digEixo ? 'Eixo da Computação: '+h.digEixo+(h.digSerie?(' ('+h.digSerie+')'):'')+'\n' : '';
-      return prefix+'Código: '+ch.cod+'\nEtapa/Ano: '+(ch.ano||ch.etapa||'Ensino Médio')+'\nComponente: '+(ch.comp||'')+'\n'+(extra||'')+'Habilidade: '+ch.texto+'\nNível de Bloom: '+h.bloomLevel+' — '+bloomNames[h.bloomLevel]+'\nVerbo: '+(ch.verbo||'');
-    }
-    return prefix+'Código: '+(h.codManual||'não informado')+'\nHabilidade: '+(h.habManual||'não informada');
+    return prefix+habInfoSingle(h);
   });
   return infos.join('\n\n');
 }
@@ -1806,28 +1810,33 @@ function buildChecklist(){
     if(document.getElementById('criteriaList_'+i)) syncCritFields(i);
   });
   var hab=getHabText();
-  var todoCont = ST.habilidades.some(function(h){return (h.conteudo||'').trim().length>0;});
-  var todasCont = ST.habilidades.every(function(h){return (h.conteudo||'').trim().length>30;});
-  var todoMet = ST.habilidades.some(function(h){return (h.metodologia||'').trim().length>0;});
-  var todosMet = ST.habilidades.every(function(h){return (h.metodologia||'').trim().length>80;});
-  var todoCrit = ST.habilidades.some(function(h){return (h.criterios||[]).length>0;});
-  var todosCrit = ST.habilidades.every(function(h){return (h.criterios||[]).length>=2;});
+  var nHabs=ST.habilidades.length;
+  // CADA habilidade (BNCC ou Educação Digital) precisa estar coberta em cada etapa
+  var todasComCod  = ST.habilidades.every(function(h){ return !!(h.currentHab && h.currentHab.cod); });
+  var todasBloom   = ST.habilidades.every(function(h){ return (h.bloomLevel||0)>0; });
+  var todasContSimples = ST.habilidades.every(function(h){ return (h.conteudo||'').trim().length>0; });
+  var todasCont    = ST.habilidades.every(function(h){ return (h.conteudo||'').trim().length>30; });
+  var todasMetSimples = ST.habilidades.every(function(h){ return (h.metodologia||'').trim().length>0; });
+  var todosMet     = ST.habilidades.every(function(h){ return (h.metodologia||'').trim().length>80; });
+  var todosCrit2   = ST.habilidades.every(function(h){ return (h.criterios||[]).length>=2; });
   var instr=getInstrs();
   var checks=[
-    {ok:!!ST.currentHab&&!!ST.currentHab.cod, label:'Habilidade selecionada da lista BNCC com código correto', tag:'Obrigatório'},
-    {ok:!!hab, label:'Texto completo da habilidade presente', tag:'Obrigatório'},
-    {ok:ST.bloomLevel>0, label:'Nível cognitivo de Bloom identificado', tag:'Alinhamento'},
-    {ok:todoCont, label:'Objeto de conhecimento / conteúdo definido (ao menos 1 habilidade)', tag:'Obrigatório'},
-    {ok:todasCont, label:'Conteúdo detalhado para todas as habilidades', tag:'Qualidade'},
-    {ok:todoMet, label:'Caminho metodológico descrito (ao menos 1 habilidade)', tag:'Obrigatório'},
-    {ok:todosMet, label:'Metodologia propõe atividade no nível cognitivo correto (todas as habilidades)', tag:'Alinhamento'},
-    {ok:todoCrit, label:'Critérios de avaliação definidos (ao menos 1 habilidade)', tag:'Obrigatório'},
-    {ok:todosCrit, label:'Pelo menos 2 critérios observáveis por habilidade', tag:'Qualidade'},
+    {ok:todasComCod, label:'TODAS as habilidades selecionadas com código (BNCC e/ou Educação Digital)', tag:'Obrigatório'},
+    {ok:!!hab, label:'Texto completo das habilidades presente', tag:'Obrigatório'},
+    {ok:todasBloom, label:'Nível cognitivo de Bloom identificado em CADA habilidade', tag:'Alinhamento'},
+    {ok:todasContSimples, label:'Objeto de conhecimento / conteúdo definido para CADA habilidade', tag:'Obrigatório'},
+    {ok:todasCont, label:'Conteúdo detalhado (30+ caracteres) em CADA habilidade', tag:'Qualidade'},
+    {ok:todasMetSimples, label:'Caminho metodológico descrito para CADA habilidade', tag:'Obrigatório'},
+    {ok:todosMet, label:'Metodologia propõe atividade no nível cognitivo do verbo em CADA habilidade', tag:'Alinhamento'},
+    {ok:todosCrit2, label:'Pelo menos 2 critérios observáveis em CADA habilidade', tag:'Obrigatório'},
     {ok:!!instr, label:'Instrumento(s) de avaliação selecionado(s)', tag:'Obrigatório'},
     {ok:!!document.getElementById('professor').value.trim(), label:'Nome do professor informado', tag:'Identificação'},
     {ok:!!document.getElementById('turma').value.trim(), label:'Turma / etapa informada', tag:'Identificação'},
     {ok:ST.areas.length>0, label:'Área do conhecimento selecionada', tag:'Identificação'},
   ];
+  if(nHabs>1){
+    checks.push({ok:false, label:'⚠️ Plano com '+nHabs+' habilidades: confira todos os itens acima para CADA uma (revise as abas)', tag:'Atenção'});
+  }
   var html='';
   checks.forEach(function(c){
     var cls=c.ok?'chk-item chk-ok':'chk-item chk-warn';
@@ -1896,17 +1905,78 @@ async function analisarIA(){
   b.disabled=false;
 }
 
+// Sync de TODAS as abas (evita perder campos editados antes de pedir a IA)
+function syncContFieldsAll(){ ST.habilidades.forEach(function(h,i){ if(document.getElementById('cont_'+i)) syncContFields(i); }); }
+function syncMetFieldsAll(){ ST.habilidades.forEach(function(h,i){ if(document.getElementById('met_'+i)) syncMetFields(i); }); }
+
+// Divide a resposta da IA em blocos rotulados por habilidade (HAB N: / HABILIDADE N:)
+function ezerBlockSplit(text, n, rotulo){
+  var blocks=new Array(n).fill('');
+  var re=/HAB(?:ILIDADE)?\s*(\d+)\s*[:.\-]\s*([\s\S]*?)(?=HAB(?:ILIDADE)?\s*\d+\s*[:.\-]|$)/gi;
+  var m;
+  while((m=re.exec(text||''))){
+    var idx=parseInt(m[1],10)-1;
+    var content=m[2].trim();
+    if(idx>=0 && idx<n && content.length>5) blocks[idx]=content;
+  }
+  if(n===1 && blocks[0]==='' && text && text.trim().length>5) blocks[0]=text.trim();
+  return blocks;
+}
+
+// Extrai critérios de um bloco de texto (3 níveis de fallback)
+function parseCritBlock(str){
+  var crits=[];
+  var lines=String(str||'').split('\n');
+  crits=lines.filter(function(l){return /^CRIT\s*:/i.test(l.trim());})
+    .map(function(l){return l.replace(/^CRIT\s*:\s*/i,'').replace(/^\[|\]$/g,'').replace(/^[\d\.\-\•\*\s]+/,'').trim();})
+    .filter(function(l){return l.length>8;});
+  if(crits.length<2){
+    crits=lines.filter(function(l){return /^\s*[1-4][\.):]\s+\S/.test(l);})
+      .map(function(l){return l.replace(/^\s*[1-4][\.):]\s+/,'').trim();})
+      .filter(function(l){return l.length>8;})
+      .slice(0,4);
+  }
+  if(crits.length<2){
+    crits=lines.map(function(l){return l.trim();})
+      .filter(function(l){return l.length>25&&!/^(INSTR|instrumento|HAB\s*\d|parte|PARTE|---|-|\*\*|#)/i.test(l);})
+      .slice(0,4);
+  }
+  return crits;
+}
+
 async function sugerirConteudo(){
   var b=document.getElementById('btnCont'),r=document.getElementById('iaCont');
-  if(!getHabText()){alert('Selecione a habilidade primeiro.');return;}
-  b.disabled=true;r.className='ai-result loading';r.innerHTML='<span class="spinner"></span>Sugerindo...';
+  if(!getHabText()){alert('Selecione ao menos uma habilidade.');return;}
+  b.disabled=true;r.className='ai-result loading';r.innerHTML='<span class="spinner"></span>Sugerindo conteúdos para todas as habilidades...';
   try{
+    var n=ST.habilidades.length;
+    syncContFieldsAll();
     var tema2=document.getElementById('temaGerador').value.trim();
     var turma2=document.getElementById('turma').value.trim();
-    var p=habInfoAll()+'\nTema gerador: '+(tema2||'não informado')+'\nTurma: '+(turma2||'não informado')+'\n\nSugira 5 a 8 objetos de conhecimento (conteúdos) que sejam MEIOS para o aluno exercer o VERBO desta habilidade.\nPara cada conteúdo:\n- Explique brevemente como ele permite ao aluno exercer o verbo (não apenas o tema).\n- Indique conexões interdisciplinares possíveis com outras áreas/componentes do EM (Língua Portuguesa, História, Matemática, Arte, Filosofia etc.) quando pertinente.\nFormate como lista numerada.';
-    var t=await callGemini(p);r.className='ai-result';r.innerHTML=t.replace(/\n/g,'<br>');
-    var el=document.getElementById('cont_'+HAB_ACTIVE);
-    if(el&&!el.value){el.value=t; if(ST.habilidades[HAB_ACTIVE]) ST.habilidades[HAB_ACTIVE].conteudo=t;}
+    var p=habInfoAll()+'\nTema gerador: '+(tema2||'não informado')+'\nTurma: '+(turma2||'não informado')
+      +'\n\nTAREFA: sugira 5 a 8 objetos de conhecimento (conteúdos) para CADA uma das habilidades listadas acima, sempre como MEIOS para o aluno exercer o VERBO daquela habilidade.'
+      +'\nPara cada habilidade:'
+      +'\n- Explique brevemente como o conteúdo permite ao aluno exercer o verbo (não apenas o tema).'
+      +'\n- Se a habilidade for de Educação Digital (Eixo da Computação), integre o eixo ao conteúdo (algoritmos, uso crítico de tecnologias, cultura digital etc.).'
+      +'\n- Indique conexões interdisciplinares possíveis com outras áreas/componentes quando pertinente.'
+      +'\n\nFORMATO OBRIGATÓRIO — um bloco por habilidade, nesta ordem exata:'
+      +'\nHAB 1: [conteúdos da habilidade 1]'
+      +'\nHAB 2: [conteúdos da habilidade 2]'
+      +'\n... (continue até HAB '+n+')';
+    var t=await callGemini(p);
+    r.className='ai-result';r.innerHTML=t.replace(/\n/g,'<br>');
+    var blocks=ezerBlockSplit(t, n, 'conteúdos');
+    var preenchidas=0;
+    ST.habilidades.forEach(function(h,i){
+      if((h.conteudo||'').trim().length===0 && blocks[i]){
+        h.conteudo=blocks[i];
+        var el=document.getElementById('cont_'+i);
+        if(el) el.value=blocks[i];
+        preenchidas++;
+      }
+    });
+    r.innerHTML+='<br><br><strong style="color:#27ae60;font-family:Sora,sans-serif;">✅ Objetos de conhecimento preenchidos para '+preenchidas+' de '+n+' habilidade(s).</strong>';
+    if(preenchidas<n) r.innerHTML+='<br><span style="color:#e67e22;font-family:Sora,sans-serif;">⚠️ Revise cada aba: as habilidades não preenchidas precisam de conteúdo próprio.</span>';
   }
   catch(e){r.className='ai-result loading';r.innerHTML='⚠️ '+e.message;}
   b.disabled=false;
@@ -1914,18 +1984,43 @@ async function sugerirConteudo(){
 
 async function sugerirMet(){
   var b=document.getElementById('btnMet'),r=document.getElementById('iaMet');
-  if(!getHabText()){alert('Selecione a habilidade primeiro.');return;}
-  b.disabled=true;r.className='ai-result loading';r.innerHTML='<span class="spinner"></span>Elaborando roteiro...';
-  syncContFields(HAB_ACTIVE);
-  var cont=getActiveConteudo();
+  if(!getHabText()){alert('Selecione ao menos uma habilidade.');return;}
+  b.disabled=true;r.className='ai-result loading';r.innerHTML='<span class="spinner"></span>Elaborando roteiros para todas as habilidades...';
+  syncContFieldsAll();
   var turma=document.getElementById('turma').value.trim();
   var tema=document.getElementById('temaGerador').value.trim();
+  var n=ST.habilidades.length;
   try{
     var metSel=getActiveMethodsSel().join(', ');
-    var p=habInfoAll()+'\nTema gerador: '+(tema||'não informado')+'\nTurma: '+(turma||'não informado')+'\nConteúdo/Objetos de conhecimento: '+(cont||'não especificado')+'\nEstratégias/Metodologias ativas selecionadas: '+(metSel||'não selecionadas')+'\n\nElabore o CAMINHO METODOLÓGICO integrando TODOS os elementos acima.\nEstrutura obrigatória em 3 momentos:\n1. MOMENTO INICIAL (mobilização/ativação): Como engajar o aluno e ativar conhecimentos prévios usando as estratégias selecionadas.\n2. MOMENTO DE DESENVOLVIMENTO: Atividades que EXIJAM do aluno o mesmo nível cognitivo do VERBO da habilidade, usando os conteúdos como meio e as metodologias ativas escolhidas. Seja específico sobre O QUE O ALUNO FAZ.\n3. MOMENTO DE SISTEMATIZAÇÃO: Como consolidar a aprendizagem e verificar se o aluno desenvolveu a habilidade.\nContexto: EJA/Ensino Médio. Máximo 4 parágrafos. Foco no que o ALUNO faz, não no professor.';
-    var t=await callGemini(p);r.className='ai-result';r.innerHTML=t.replace(/\n/g,'<br>');
-    var el=document.getElementById('met_'+HAB_ACTIVE);
-    if(el&&!el.value){el.value=t; if(ST.habilidades[HAB_ACTIVE]) ST.habilidades[HAB_ACTIVE].metodologia=t;}
+    var habsTudo=ST.habilidades.map(function(h,i){
+      return 'HABILIDADE '+(i+1)+'\n'+habInfoSingle(h)+'\nObjeto de conhecimento/conteúdo: '+(h.conteudo||'não especificado');
+    }).join('\n\n---\n\n');
+    var p=habsTudo+'\nTema gerador: '+(tema||'não informado')+'\nTurma: '+(turma||'não informado')+'\nEstratégias/Metodologias ativas selecionadas: '+(metSel||'não selecionadas')
+      +'\n\nTAREFA: elabore o CAMINHO METODOLÓGICO PARA CADA habilidade, integrando o verbo, os conteúdos de cada uma e as estratégias ativas escolhidas.'
+      +'\nCada caminho metodológico deve ter EXATAMENTE 3 momentos:'
+      +'\n1. MOMENTO INICIAL (mobilização/ativação): como engajar o aluno e ativar conhecimentos prévios.'
+      +'\n2. MOMENTO DE DESENVOLVIMENTO: atividades que EXIJAM do aluno o mesmo nível cognitivo do VERBO daquela habilidade, usando os conteúdos como meio. Seja específico sobre O QUE O ALUNO FAZ.'
+      +'\n3. MOMENTO DE SISTEMATIZAÇÃO: como consolidar a aprendizagem e verificar o desenvolvimento daquela habilidade.'
+      +'\nSe houver habilidade de Educação Digital (computação), inclua atividades próprias para ela (produção de algoritmos, uso crítico/criativo de tecnologias conforme o eixo).'
+      +'\nContexto: EJA/Ensino Médio. Use até 4 parágrafos POR habilidade. Foco no que o ALUNO faz, não no professor.'
+      +'\n\nFORMATO OBRIGATÓRIO — um bloco por habilidade, nesta ordem exata:'
+      +'\nHAB 1: [caminho metodológico da habilidade 1]'
+      +'\nHAB 2: [caminho metodológico da habilidade 2]'
+      +'\n... (até HAB '+n+')';
+    var t=await callGemini(p);
+    r.className='ai-result';r.innerHTML=t.replace(/\n/g,'<br>');
+    var blocks=ezerBlockSplit(t, n, 'caminho metodológico');
+    var preenchidas=0;
+    ST.habilidades.forEach(function(h,i){
+      if((h.metodologia||'').trim().length===0 && blocks[i]){
+        h.metodologia=blocks[i];
+        var el=document.getElementById('met_'+i);
+        if(el) el.value=blocks[i];
+        preenchidas++;
+      }
+    });
+    r.innerHTML+='<br><br><strong style="color:#27ae60;font-family:Sora,sans-serif;">✅ Caminho metodológico preenchido para '+preenchidas+' de '+n+' habilidade(s).</strong>';
+    if(preenchidas<n) r.innerHTML+='<br><span style="color:#e67e22;font-family:Sora,sans-serif;">⚠️ Revise cada aba: as habilidades sem roteiro próprio precisam ser preenchidas.</span>';
   }
   catch(e){r.className='ai-result loading';r.innerHTML='⚠️ '+e.message;}
   b.disabled=false;
@@ -1933,79 +2028,58 @@ async function sugerirMet(){
 
 async function sugerirCrit(){
   var b=document.getElementById('btnCrit'),r=document.getElementById('iaCrit');
-  if(!getHabText()){alert('Selecione a habilidade primeiro.');return;}
-  b.disabled=true;r.className='ai-result loading';r.innerHTML='<span class="spinner"></span>Elaborando critérios...';
+  if(!getHabText()){alert('Selecione ao menos uma habilidade.');return;}
+  b.disabled=true;r.className='ai-result loading';r.innerHTML='<span class="spinner"></span>Elaborando critérios para todas as habilidades...';
   try{
-    if(document.getElementById('cont_'+HAB_ACTIVE)) syncContFields(HAB_ACTIVE);
-    if(document.getElementById('met_'+HAB_ACTIVE)) syncMetFields(HAB_ACTIVE);
-    var hab = getActiveHab();
-    var cont2 = hab.conteudo||'';
-    var met2  = hab.metodologia||'';
+    syncContFieldsAll();
+    syncMetFieldsAll();
+    var n=ST.habilidades.length;
     var metAtivas = getActiveMethodsSel();
     var instrSel = Array.from(document.querySelectorAll('#instrGrid .method-chip.selected')).map(function(e){return e.textContent.trim();});
     var instrDisp = ['Resolução de situações-problema','Produção textual escrita','Apresentação oral','Atividade de análise','Mapa conceitual','Portfólio','Autoavaliação','Prova dissertativa','Rubrica','Observação sistemática','Relatório de atividade','Debate avaliativo'];
 
-    var p = habInfoAll()
-      +'\n\nOBJETO DE CONHECIMENTO / CONTEÚDO:\n'+(cont2||'não especificado')
+    var habsTudo = ST.habilidades.map(function(h,i){
+      var bloco = 'HABILIDADE '+(i+1)+'\n'+habInfoSingle(h)
+        +'\nObjeto de conhecimento/conteúdo: '+(h.conteudo||'não especificado');
+      if(h.metodologia) bloco += '\nCaminho metodológico: '+h.metodologia;
+      return bloco;
+    }).join('\n\n---\n\n');
+
+    var formato = '';
+    ST.habilidades.forEach(function(h,i){
+      formato += '\nHAB '+(i+1)+':';
+      for(var k=1;k<=4;k++) formato += '\nCRIT: [critério '+k+' da habilidade '+(i+1)+']';
+    });
+    formato += '\n\nINSTR: [instrumento] — [como avalia estes critérios]';
+    formato += '\nINSTR: [instrumento] — [justificativa]';
+
+    var p = habsTudo
       +'\n\nMETODOLOGIAS ATIVAS SELECIONADAS: '+(metAtivas.length ? metAtivas.join(', ') : 'nenhuma')
-      +'\n\nCAMINHO METODOLÓGICO:\n'+(met2||'não descrito')
       +'\n\nINSTRUMENTOS DE AVALIAÇÃO SELECIONADOS: '+(instrSel.length ? instrSel.join(', ') : 'nenhum ainda')
       +'\n\nINSTRUMENTOS DISPONÍVEIS: '+instrDisp.join(', ')
-      +'\n\n---'
-      +'\nTarefa: gere EXATAMENTE 4 critérios de avaliação e recomende instrumentos.'
+      +'\n\nTAREFA: gere EXATAMENTE 4 critérios de avaliação PARA CADA habilidade listada, derivados do VERBO de CADA uma.'
       +'\n\nREGRAS PARA OS CRITÉRIOS:'
-      +'\n- Derivados do VERBO DA HABILIDADE (não trocar o verbo)'
+      +'\n- Derivados do VERBO da habilidade correspondente (não trocar o verbo)'
       +'\n- Observáveis e mensuráveis, na 3ª pessoa do singular'
-      +'\n- Alinhados ao nível de Bloom identificado'
+      +'\n- Alinhados ao nível de Bloom identificado naquela habilidade'
       +'\n- Relacionados ao conteúdo E ao que o aluno faz na metodologia descrita'
       +'\n- NUNCA use: "demonstrar progressão", "mostrar envolvimento", "participação ativa"'
-      +'\n\nFORMATO OBRIGATÓRIO — siga exatamente, sem variações:'
-      +'\nCRIT: [texto do critério 1]'
-      +'\nCRIT: [texto do critério 2]'
-      +'\nCRIT: [texto do critério 3]'
-      +'\nCRIT: [texto do critério 4]'
-      +'\n'
-      +'\nINSTR: [instrumento] — [como avalia estes critérios]'
-      +'\nINSTR: [instrumento] — [justificativa]';
+      +'\n\nFORMATO OBRIGATÓRIO — um bloco por habilidade, sem variações:'
+      +formato;
 
     var t = await callGemini(p);
     r.className='ai-result';r.innerHTML=t.replace(/\n/g,'<br>');
 
-    // ── Parser de critérios com 3 níveis de fallback ──
-    var crits = [];
-    var lines = t.split('\n');
-
-    // Nível 1: linhas com prefixo CRIT:
-    crits = lines
-      .filter(function(l){ return /^CRIT\s*:/i.test(l.trim()); })
-      .map(function(l){ return l.replace(/^CRIT\s*:\s*/i,'').replace(/^\[|\]$/g,'').replace(/^[\d\.\-\•\*\s]+/,'').trim(); })
-      .filter(function(l){ return l.length > 8; });
-
-    // Nível 2: linhas numeradas 1. 2. 3. 4.
-    if(crits.length < 2){
-      crits = lines
-        .filter(function(l){ return /^\s*[1-4][\.):]\s+\S/.test(l); })
-        .map(function(l){ return l.replace(/^\s*[1-4][\.):]\s+/,'').trim(); })
-        .filter(function(l){ return l.length > 8; })
-        .slice(0,4);
-    }
-
-    // Nível 3: linhas longas que não sejam cabeçalhos
-    if(crits.length < 2){
-      crits = lines
-        .map(function(l){ return l.trim(); })
-        .filter(function(l){ return l.length > 25 && !/^(INSTR|instrumento|parte|PARTE|---|-|\*\*|#)/i.test(l); })
-        .slice(0,4);
-    }
-
-    if(crits.length > 0){
-      ST.habilidades[HAB_ACTIVE].criterios = crits;
-      renderCritTabs();
-      var habLabel = ST.habilidades[HAB_ACTIVE].currentHab ? ST.habilidades[HAB_ACTIVE].currentHab.cod : 'Habilidade '+(HAB_ACTIVE+1);
-      r.innerHTML += '<br><br><strong style="color:#27ae60;font-family:Sora,sans-serif;">✅ '+crits.length+' critério(s) inserido(s) na aba: '+habLabel+'</strong>';
-    } else {
-      r.innerHTML += '<br><br><span style="color:#e67e22;font-family:Sora,sans-serif;">⚠️ Não foi possível extrair critérios automaticamente. Copie o texto acima e cole nos campos manualmente.</span>';
-    }
+    var blocks = ezerBlockSplit(t, n, 'critérios');
+    var total=0, comCriterios=0;
+    ST.habilidades.forEach(function(h,i){
+      if((h.criterios||[]).length>=2){ total+=h.criterios.length; comCriterios++; return; }
+      var crits = blocks[i] ? parseCritBlock(blocks[i]) : [];
+      if(crits.length){ h.criterios=crits; total+=crits.length; comCriterios++; }
+    });
+    renderCritTabs();
+    r.innerHTML += '<br><br><strong style="color:#27ae60;font-family:Sora,sans-serif;">✅ '+total+' critério(s) inserido(s) em '+comCriterios+' de '+n+' habilidade(s).</strong>';
+    if(comCriterios<n) r.innerHTML += '<br><span style="color:#e67e22;font-family:Sora,sans-serif;">⚠️ Revise cada aba de critérios: as habilidades sem critérios precisam de avaliação própria.</span>';
   }
   catch(e){r.className='ai-result loading';r.innerHTML='⚠️ '+e.message;}
   b.disabled=false;
