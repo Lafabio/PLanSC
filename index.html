@@ -1090,6 +1090,32 @@ function selectDigitalHab(habIdx, cod){
   selectSkillHab(habIdx, cod);
 }
 
+// Tenta deduzir a série a partir do texto do campo "Turma / Etapa"
+function serieDaTurma(txt){
+  if(!txt) return '';
+  var t=' '+String(txt).toLowerCase()+' ';
+  if(/(ensino\s+m[ée]dio|\bm[ée]dio\b|\bem\b)/.test(t)) return 'Ensino Médio';
+  var m=t.match(/(\d{1,2})\s*[º°o]\s*ano/);
+  if(m) return parseInt(m[1],10)+'º ano';
+  m=t.match(/(\d{1,2})\s*[ªa]\s*(?:s[ée]rie|serie)/);
+  if(m) return parseInt(m[1],10)+'º ano';
+  return '';
+}
+function aplicarSerieAutomatica(){
+  var serie=serieDaTurma((document.getElementById('turma')||{value:''}).value);
+  if(!serie) return;
+  ensureHabs();
+  ST.habilidades.forEach(function(h){
+    if(!h.digSerie) h.digSerie=serie;
+  });
+}
+function onTurmaChange(){
+  aplicarSerieAutomatica();
+  var sSel=document.getElementById('digSerie_'+HAB_ACTIVE);
+  if(sSel) sSel.value=(ST.habilidades[HAB_ACTIVE]||{}).digSerie||'';
+  renderDigitalList(HAB_ACTIVE);
+}
+
 // Garante ao menos 1 habilidade no array
 function ensureHabs(){
   if(!ST.habilidades||!ST.habilidades.length){
@@ -3256,6 +3282,11 @@ document.addEventListener('DOMContentLoaded',function(){
 
   // Aplica o limite de planos gratuitos para todos (só admin ilimitado)
   aplicarLimitesV3();
+
+  // Série sugerida automaticamente a partir do campo "Turma / Etapa"
+  aplicarSerieAutomatica();
+  var _turmaEl=document.getElementById('turma');
+  if(_turmaEl) _turmaEl.addEventListener('change', onTurmaChange);
 
   if(!firebaseOk()){
     mostrarSemAuth();
