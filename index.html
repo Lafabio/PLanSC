@@ -1638,15 +1638,32 @@ function getHabText(){
   return parts.join('\n\n');
 }
 
-// ── habInfo — info da habilidade ATIVA (para prompts IA) ──
-function habInfo(){
+// ── habInfoAll — info de TODAS as habilidades (garante a digital integrada no planejamento IA) ──
+function habInfoAll(){
   ensureHabs();
-  var h = getActiveHab();
-  if(h.currentHab && h.currentHab.texto){
-    var ch = h.currentHab;
-    return 'Código: '+ch.cod+'\nEtapa/Ano: '+(ch.ano||ch.etapa||'Ensino Médio')+'\nComponente: '+(ch.comp||'')+'\nHabilidade: '+ch.texto+'\nNível de Bloom: '+h.bloomLevel+' — '+bloomNames[h.bloomLevel]+'\nVerbo: '+ch.verbo;
-  }
-  return 'Código: '+(h.codManual||'não informado')+'\nHabilidade: '+(h.habManual||'não informada');
+  var infos = ST.habilidades.map(function(h,i){
+    var prefix = ST.habilidades.length>1 ? 'Habilidade '+(i+1)+' — ' : '';
+    if(h.currentHab && h.currentHab.texto){
+      var ch = h.currentHab;
+      var extra = h.digEixo ? 'Eixo da Computação: '+h.digEixo+(h.digSerie?(' ('+h.digSerie+')'):'')+'\n' : '';
+      return prefix+'Código: '+ch.cod+'\nEtapa/Ano: '+(ch.ano||ch.etapa||'Ensino Médio')+'\nComponente: '+(ch.comp||'')+'\n'+(extra||'')+'Habilidade: '+ch.texto+'\nNível de Bloom: '+h.bloomLevel+' — '+bloomNames[h.bloomLevel]+'\nVerbo: '+(ch.verbo||'');
+    }
+    return prefix+'Código: '+(h.codManual||'não informado')+'\nHabilidade: '+(h.habManual||'não informada');
+  });
+  return infos.join('\n\n');
+}
+// habInfo — info da habilidade ATIVA (compatibilidade; para prompts IA usa-se habInfoAll)
+function habInfo(){ return habInfoAll(); }
+
+// Linha da habilidade para prévia/exportação, com eixo digital quando aplicável
+function habLinhaPlano(h, i){
+  var txt='', cod='';
+  if(h.currentHab && h.currentHab.texto){ txt=h.currentHab.texto; cod=h.currentHab.cod||''; }
+  else { txt=h.habManual||''; cod=h.codManual||''; }
+  if(!txt) return '';
+  var line=(i+1)+'. '+(cod?'('+cod+') ':'')+txt;
+  if(h.digEixo) line+='\n    [Educação Digital — '+((h.digSerie||'')?h.digSerie+' / ':'')+h.digEixo+']';
+  return line;
 }
 
 // ── Dissectar com IA por aba ──
@@ -1750,14 +1767,7 @@ function updatePreview(){
   });
   var crit = critLines.join('\n')||'—';
   // Habilidades: lista numerada
-  var habLines = ST.habilidades.map(function(h, i){
-    if(h.currentHab && h.currentHab.texto){
-      var cod = h.currentHab.cod ? '('+h.currentHab.cod+') ' : '';
-      return (i+1)+'. '+cod+h.currentHab.texto;
-    }
-    var cod = h.codManual ? '('+h.codManual+') ' : '';
-    return h.habManual ? (i+1)+'. '+cod+h.habManual : '';
-  }).filter(Boolean);
+  var habLines = ST.habilidades.map(habLinhaPlano).filter(Boolean);
   document.getElementById('p_escola').textContent=document.getElementById('escola').value||'—';
   document.getElementById('p_prof').textContent=document.getElementById('professor').value||'—';
   document.getElementById('p_area').textContent=areaFull||'—';
@@ -1867,7 +1877,7 @@ async function analisarIA(){
   var b=document.getElementById('btnIA'),r=document.getElementById('iaResult');
   if(!getHabText()){alert('Selecione ou digite uma habilidade primeiro.');return;}
   b.disabled=true;r.className='ai-result loading';r.innerHTML='<span class="spinner"></span>Analisando...';
-  try{var t=await callGemini('Analise esta habilidade:\n\n'+habInfo()+'\n\nForneça:\n1. Verbos identificados e nível de Bloom confirmado\n2. O que o aluno precisa FAZER (ação cognitiva)\n3. Sobre o quê / com o quê\n4. Para quê (finalidade)\n5. Alertas sobre erros comuns no planejamento desta habilidade\n\nSeja direto e técnico.');r.className='ai-result';r.innerHTML=t.replace(/\n/g,'<br>');}
+  try{var t=await callGemini('Analise esta habilidade:\n\n'+habInfoAll()+'\n\nForneça:\n1. Verbos identificados e nível de Bloom confirmado\n2. O que o aluno precisa FAZER (ação cognitiva)\n3. Sobre o quê / com o quê\n4. Para quê (finalidade)\n5. Alertas sobre erros comuns no planejamento desta habilidade\n\nSeja direto e técnico.');r.className='ai-result';r.innerHTML=t.replace(/\n/g,'<br>');}
   catch(e){r.className='ai-result loading';r.innerHTML='⚠️ '+e.message;}
   b.disabled=false;
 }
@@ -1879,7 +1889,7 @@ async function sugerirConteudo(){
   try{
     var tema2=document.getElementById('temaGerador').value.trim();
     var turma2=document.getElementById('turma').value.trim();
-    var p=habInfo()+'\nTema gerador: '+(tema2||'não informado')+'\nTurma: '+(turma2||'não informado')+'\n\nSugira 5 a 8 objetos de conhecimento (conteúdos) que sejam MEIOS para o aluno exercer o VERBO desta habilidade.\nPara cada conteúdo:\n- Explique brevemente como ele permite ao aluno exercer o verbo (não apenas o tema).\n- Indique conexões interdisciplinares possíveis com outras áreas/componentes do EM (Língua Portuguesa, História, Matemática, Arte, Filosofia etc.) quando pertinente.\nFormate como lista numerada.';
+    var p=habInfoAll()+'\nTema gerador: '+(tema2||'não informado')+'\nTurma: '+(turma2||'não informado')+'\n\nSugira 5 a 8 objetos de conhecimento (conteúdos) que sejam MEIOS para o aluno exercer o VERBO desta habilidade.\nPara cada conteúdo:\n- Explique brevemente como ele permite ao aluno exercer o verbo (não apenas o tema).\n- Indique conexões interdisciplinares possíveis com outras áreas/componentes do EM (Língua Portuguesa, História, Matemática, Arte, Filosofia etc.) quando pertinente.\nFormate como lista numerada.';
     var t=await callGemini(p);r.className='ai-result';r.innerHTML=t.replace(/\n/g,'<br>');
     var el=document.getElementById('cont_'+HAB_ACTIVE);
     if(el&&!el.value){el.value=t; if(ST.habilidades[HAB_ACTIVE]) ST.habilidades[HAB_ACTIVE].conteudo=t;}
@@ -1898,7 +1908,7 @@ async function sugerirMet(){
   var tema=document.getElementById('temaGerador').value.trim();
   try{
     var metSel=getActiveMethodsSel().join(', ');
-    var p=habInfo()+'\nTema gerador: '+(tema||'não informado')+'\nTurma: '+(turma||'não informado')+'\nConteúdo/Objetos de conhecimento: '+(cont||'não especificado')+'\nEstratégias/Metodologias ativas selecionadas: '+(metSel||'não selecionadas')+'\n\nElabore o CAMINHO METODOLÓGICO integrando TODOS os elementos acima.\nEstrutura obrigatória em 3 momentos:\n1. MOMENTO INICIAL (mobilização/ativação): Como engajar o aluno e ativar conhecimentos prévios usando as estratégias selecionadas.\n2. MOMENTO DE DESENVOLVIMENTO: Atividades que EXIJAM do aluno o mesmo nível cognitivo do VERBO da habilidade, usando os conteúdos como meio e as metodologias ativas escolhidas. Seja específico sobre O QUE O ALUNO FAZ.\n3. MOMENTO DE SISTEMATIZAÇÃO: Como consolidar a aprendizagem e verificar se o aluno desenvolveu a habilidade.\nContexto: EJA/Ensino Médio. Máximo 4 parágrafos. Foco no que o ALUNO faz, não no professor.';
+    var p=habInfoAll()+'\nTema gerador: '+(tema||'não informado')+'\nTurma: '+(turma||'não informado')+'\nConteúdo/Objetos de conhecimento: '+(cont||'não especificado')+'\nEstratégias/Metodologias ativas selecionadas: '+(metSel||'não selecionadas')+'\n\nElabore o CAMINHO METODOLÓGICO integrando TODOS os elementos acima.\nEstrutura obrigatória em 3 momentos:\n1. MOMENTO INICIAL (mobilização/ativação): Como engajar o aluno e ativar conhecimentos prévios usando as estratégias selecionadas.\n2. MOMENTO DE DESENVOLVIMENTO: Atividades que EXIJAM do aluno o mesmo nível cognitivo do VERBO da habilidade, usando os conteúdos como meio e as metodologias ativas escolhidas. Seja específico sobre O QUE O ALUNO FAZ.\n3. MOMENTO DE SISTEMATIZAÇÃO: Como consolidar a aprendizagem e verificar se o aluno desenvolveu a habilidade.\nContexto: EJA/Ensino Médio. Máximo 4 parágrafos. Foco no que o ALUNO faz, não no professor.';
     var t=await callGemini(p);r.className='ai-result';r.innerHTML=t.replace(/\n/g,'<br>');
     var el=document.getElementById('met_'+HAB_ACTIVE);
     if(el&&!el.value){el.value=t; if(ST.habilidades[HAB_ACTIVE]) ST.habilidades[HAB_ACTIVE].metodologia=t;}
@@ -1921,7 +1931,7 @@ async function sugerirCrit(){
     var instrSel = Array.from(document.querySelectorAll('#instrGrid .method-chip.selected')).map(function(e){return e.textContent.trim();});
     var instrDisp = ['Resolução de situações-problema','Produção textual escrita','Apresentação oral','Atividade de análise','Mapa conceitual','Portfólio','Autoavaliação','Prova dissertativa','Rubrica','Observação sistemática','Relatório de atividade','Debate avaliativo'];
 
-    var p = habInfo()
+    var p = habInfoAll()
       +'\n\nOBJETO DE CONHECIMENTO / CONTEÚDO:\n'+(cont2||'não especificado')
       +'\n\nMETODOLOGIAS ATIVAS SELECIONADAS: '+(metAtivas.length ? metAtivas.join(', ') : 'nenhuma')
       +'\n\nCAMINHO METODOLÓGICO:\n'+(met2||'não descrito')
@@ -2058,6 +2068,9 @@ function restaurarEstado(s){
       codManual: s.codManual||'',
       habManual: s.habManual||'',
       dissect: {verbo:'—',objeto:'—',finalidade:'—'},
+      digSerie: s.digSerie||'',
+      digEixo: s.digEixo||'',
+      digOpen: !!s.digOpen,
       conteudo: s.conteudo||'',
       interdisc: s.interdisc||'',
       recursos: s.recursos||'',
@@ -2230,14 +2243,7 @@ async function exportDocx(){
     var tema    = document.getElementById('temaGerador').value||'';
     var turma   = document.getElementById('turma').value||'';
     // Todas as habilidades numeradas
-    var habLines = ST.habilidades.map(function(h, i){
-      if(h.currentHab && h.currentHab.texto){
-        var cod = h.currentHab.cod ? '('+h.currentHab.cod+') ' : '';
-        return (i+1)+'. '+cod+h.currentHab.texto;
-      }
-      var cod = h.codManual ? '('+h.codManual+') ' : '';
-      return h.habManual ? (i+1)+'. '+cod+h.habManual : '';
-    }).filter(Boolean);
+    var habLines = ST.habilidades.map(habLinhaPlano).filter(Boolean);
     var hab = habLines.join('\n\n');
     var cont    = ST.habilidades.map(function(h,i){
       var c = h.conteudo||'';
