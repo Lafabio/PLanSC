@@ -61,6 +61,29 @@ body{background:#e8e5db;background-image:repeating-linear-gradient(0deg,transpar
 .obj-hl{background:#e8f2fb;color:#1a5276;border-radius:3px;padding:1px 4px;}
 .purp-hl{background:#e8f8ee;color:#1e8449;border-radius:3px;padding:1px 4px;}
 
+/* ===== EDUCAÇÃO DIGITAL (SC) ===== */
+.dig-box{border:1.5px solid #d9d3c4;border-radius:8px;background:#fffdf7;margin-top:14px;}
+.dig-box summary{display:flex;align-items:center;gap:8px;flex-wrap:wrap;cursor:pointer;padding:11px 14px;font-weight:700;font-size:.85rem;color:#1a5276;list-style:none;}
+.dig-box summary::-webkit-details-marker{display:none;}
+.dig-box summary::before{content:'\25B6';font-size:.72rem;color:#9a8f73;transition:transform .15s;}
+.dig-box[open] summary::before{transform:rotate(90deg);}
+.dig-sub{font-weight:400;color:#8a7f66;font-size:.74rem;}
+.dig-count{margin-left:auto;font-size:.74rem;font-weight:600;color:#1e8449;background:#e8f8ee;border-radius:10px;padding:1px 9px;}
+.dig-inner{padding:4px 14px 14px;border-top:1px dashed #e3ddcf;}
+.dig-note{font-size:.76rem;color:#6b6252;background:#faf7ee;border:1px dashed #e3ddcf;border-radius:6px;padding:8px 10px;margin:10px 0 12px;line-height:1.5;}
+.dig-list{max-height:340px;overflow-y:auto;border:1.5px solid #efe9db;border-radius:6px;background:#fff;}
+.dig-serie{position:sticky;top:0;background:#f2eee2;padding:7px 12px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#7a6f58;border-bottom:1px solid #e3ddcf;}
+.dig-opt{padding:9px 12px;border-bottom:1px solid #f3efe4;cursor:pointer;transition:background .15s;}
+.dig-opt:hover{background:#eef4fb;}
+.dig-opt-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px;}
+.dig-cod{font-family:monospace;font-weight:700;font-size:.82rem;color:#1a5276;}
+.dig-eixo{font-size:.7rem;font-weight:700;padding:1px 8px;border-radius:9px;}
+.dig-eixo.pc{background:#e8f8ee;color:#1e8449;}
+.dig-eixo.md{background:#e8f2fb;color:#2980b9;}
+.dig-eixo.cd{background:#fef0e0;color:#e67e22;}
+.dig-eixo.em{background:#eef2ff;color:#3949ab;}
+.dig-prev{font-size:.78rem;color:#555;line-height:1.45;}
+
 /* ===== DISSECTION GRID ===== */
 .dissect-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:12px;}
 .dc{background:#fff;border-radius:6px;padding:12px 14px;border-left:4px solid;}
@@ -971,6 +994,102 @@ var AREA_LABELS = {
   EF_ER:'✝️ EF — Ensino Religioso'
 };
 
+// ===== CURRÍCULO DE EDUCAÇÃO DIGITAL (SC 2026) — BNCC Computação =====
+// Eixos: Pensamento Computacional, Mundo Digital, Cultura Digital.
+// Código da série vem do próprio código (EF01…EF09, EF15, EF69, EM13, EI03).
+var EIXO_DIGITAL = {
+  EF01:{1:'Pensamento Computacional',2:'Pensamento Computacional',3:'Pensamento Computacional',4:'Mundo Digital',5:'Mundo Digital',6:'Cultura Digital',7:'Cultura Digital'},
+  EF02:{1:'Pensamento Computacional',2:'Pensamento Computacional',3:'Mundo Digital',4:'Mundo Digital',5:'Cultura Digital',6:'Cultura Digital'},
+  EF03:{1:'Pensamento Computacional',2:'Pensamento Computacional',3:'Pensamento Computacional',4:'Mundo Digital',5:'Mundo Digital',6:'Mundo Digital',7:'Cultura Digital',8:'Cultura Digital',9:'Cultura Digital'},
+  EF04:{1:'Pensamento Computacional',2:'Pensamento Computacional',3:'Pensamento Computacional',4:'Mundo Digital',5:'Mundo Digital',6:'Cultura Digital',7:'Cultura Digital',8:'Cultura Digital'},
+  EF05:{1:'Pensamento Computacional',2:'Pensamento Computacional',3:'Pensamento Computacional',4:'Pensamento Computacional',5:'Mundo Digital',6:'Mundo Digital',7:'Mundo Digital',8:'Cultura Digital',9:'Cultura Digital',10:'Cultura Digital',11:'Cultura Digital'},
+  EF06:{1:'Pensamento Computacional',2:'Pensamento Computacional',3:'Pensamento Computacional',4:'Pensamento Computacional',5:'Pensamento Computacional',6:'Pensamento Computacional',7:'Mundo Digital',8:'Mundo Digital',9:'Cultura Digital',10:'Cultura Digital'},
+  EF07:{1:'Pensamento Computacional',2:'Pensamento Computacional',3:'Pensamento Computacional',4:'Pensamento Computacional',5:'Pensamento Computacional',6:'Mundo Digital',7:'Mundo Digital',8:'Cultura Digital',9:'Cultura Digital',10:'Cultura Digital',11:'Cultura Digital'},
+  EF08:{1:'Pensamento Computacional',2:'Pensamento Computacional',3:'Pensamento Computacional',4:'Pensamento Computacional',5:'Mundo Digital',6:'Mundo Digital',7:'Cultura Digital',8:'Cultura Digital',9:'Cultura Digital',10:'Cultura Digital',11:'Cultura Digital'},
+  EF09:{1:'Pensamento Computacional',2:'Pensamento Computacional',3:'Pensamento Computacional',4:'Mundo Digital',5:'Mundo Digital',6:'Cultura Digital',7:'Cultura Digital',8:'Cultura Digital',9:'Cultura Digital',10:'Cultura Digital'},
+  EF15:{1:'Pensamento Computacional',2:'Pensamento Computacional',3:'Pensamento Computacional',4:'Pensamento Computacional',5:'Mundo Digital',6:'Mundo Digital',7:'Mundo Digital',8:'Cultura Digital',9:'Cultura Digital'},
+  EF69:{1:'Pensamento Computacional',2:'Pensamento Computacional',3:'Pensamento Computacional',4:'Pensamento Computacional',5:'Pensamento Computacional',6:'Pensamento Computacional',7:'Mundo Digital',8:'Mundo Digital',9:'Mundo Digital',10:'Mundo Digital',11:'Cultura Digital',12:'Cultura Digital'}
+};
+var EIXOS_DIGITAL = ['Pensamento Computacional','Mundo Digital','Cultura Digital'];
+var SERIES_DIGITAL = ['Educação Infantil','1º ano','2º ano','3º ano','4º ano','5º ano','6º ano','7º ano','8º ano','9º ano','1º ao 5º ano (bloco EF15)','6º ao 9º ano (bloco EF69)','Ensino Médio'];
+var SERIES_DIGITAL_OPTS = SERIES_DIGITAL.map(function(s){return '<option>'+s+'</option>';}).join('');
+
+function eixoDigital(cod){
+  if(!cod) return '';
+  var m = cod.match(/^(EF\d\d)CO(\d+)$/);
+  if(!m) return '';
+  var g = EIXO_DIGITAL[m[1]];
+  if(!g) return '';
+  return g[parseInt(m[2],10)] || '';
+}
+function serieDigital(cod){
+  if(!cod) return '';
+  if(/^EM13CO/.test(cod)) return 'Ensino Médio';
+  if(/^EI03CO/.test(cod)) return 'Educação Infantil';
+  if(/^EF15CO/.test(cod)) return '1º ao 5º ano (bloco EF15)';
+  if(/^EF69CO/.test(cod)) return '6º ao 9º ano (bloco EF69)';
+  var m = cod.match(/^EF(\d\d)CO/);
+  if(m) return parseInt(m[1],10)+'º ano';
+  return '';
+}
+function isDigitalSkill(cod){
+  return /^(EF\d\d|EF15|EF69|EM13|EI03)CO\d+$/i.test(cod);
+}
+function digitalSkills(){
+  return HABILIDADES_DB.filter(function(h){ return isDigitalSkill(h.cod); });
+}
+function eixoCls(ex){
+  if(ex.indexOf('Pensamento')===0) return 'pc';
+  if(ex.indexOf('Mundo')===0) return 'md';
+  return 'cd';
+}
+function renderDigitalList(habIdx){
+  var el = document.getElementById('digList_'+habIdx);
+  if(!el) return;
+  var h = ST.habilidades[habIdx] || {};
+  var eixo = h.digEixo||'';
+  var serie = h.digSerie||'';
+  var list = digitalSkills().filter(function(s){
+    if(eixo && eixoDigital(s.cod) !== eixo) return false;
+    if(serie && serieDigital(s.cod) !== serie) return false;
+    return true;
+  });
+  var cnt = document.getElementById('digCount_'+habIdx);
+  if(cnt) cnt.textContent = ' ' + list.length + ' habilidade'+(list.length===1?'':'s');
+  if(!list.length){
+    el.innerHTML = '<div style="padding:10px;color:#888;font-size:.85rem;">Nenhuma habilidade encontrada para este filtro.</div>';
+    return;
+  }
+  var bySerie = {};
+  list.forEach(function(s){ (bySerie[serieDigital(s.cod)] = bySerie[serieDigital(s.cod)] || []).push(s); });
+  var out = '';
+  SERIES_DIGITAL.forEach(function(sr){
+    if(!bySerie[sr]) return;
+    out += '<div class="dig-serie">'+esc(sr)+'</div>';
+    bySerie[sr].forEach(function(s){
+      var ex = eixoDigital(s.cod)||'';
+      var chip = ex ? '<span class="dig-eixo '+eixoCls(ex)+'">'+esc(ex)+'</span>' : '<span class="dig-eixo em">Ensino Médio</span>';
+      out += '<div class="dig-opt" onclick="selectDigitalHab('+habIdx+',\''+s.cod+'\')">'
+        +'<div class="dig-opt-top"><span class="dig-cod">'+esc(s.cod)+'</span>'+chip+'</div>'
+        +'<div class="dig-prev">'+esc(s.texto.length>100?s.texto.substring(0,100)+'...':s.texto)+'</div>'
+        +'</div>';
+    });
+  });
+  el.innerHTML = out;
+}
+function digFilterHab(habIdx){
+  ensureHabs();
+  var h = ST.habilidades[habIdx];
+  h.digSerie = (document.getElementById('digSerie_'+habIdx)||{value:''}).value || '';
+  h.digEixo = (document.getElementById('digEixo_'+habIdx)||{value:''}).value || '';
+  renderDigitalList(habIdx);
+}
+function selectDigitalHab(habIdx, cod){
+  ensureHabs();
+  if(ST.habilidades[habIdx]) ST.habilidades[habIdx].digOpen = true;
+  selectSkillHab(habIdx, cod);
+}
+
 // Garante ao menos 1 habilidade no array
 function ensureHabs(){
   if(!ST.habilidades||!ST.habilidades.length){
@@ -980,6 +1099,7 @@ function ensureHabs(){
 }
 function emptyHab(){
   return {currentHab:null, bloomLevel:0, codManual:'', habManual:'', dissect:{verbo:'—',objeto:'—',finalidade:'—'},
+    digSerie:'', digEixo:'', digOpen:false,
     conteudo:'', interdisc:'', recursos:'',
     metodologia:'', methodsSel:[],
     criterios:[], avaliacao:''};
@@ -1063,6 +1183,25 @@ function renderHabPanels(){
       +'<div class="skill-dropdown" id="skillDropdown_'+i+'"></div>'
       +'</div></div>';
 
+    // ── Currículo de Educação Digital (SC 2026)
+    html += '<details class="dig-box" id="digBox_'+i+'"'+(h.digOpen?' open':'')+'>'
+      +'<summary>'
+      +'<span>🖥️ Educação Digital (SC 2026)</span>'
+      +'<span class="dig-sub">Série + eixo — BNCC Computação</span>'
+      +'<span class="dig-count" id="digCount_'+i+'"></span>'
+      +'</summary>'
+      +'<div class="dig-inner">'
+      +'<div class="dig-note">Currículo de Educação Digital de Santa Catarina, baseado na BNCC Computação (Parecer CNE/CEB nº 2/2022). Escolha a <strong>série</strong> e o <strong>eixo</strong> e clique numa habilidade para adicioná-la ao plano.</div>'
+      +'<div class="form-row" style="margin-bottom:10px;">'
+      +'<div class="field"><label>Série</label><select id="digSerie_'+i+'" onchange="digFilterHab('+i+')"><option value="">Todas</option>'+SERIES_DIGITAL_OPTS+'</select></div>'
+      +'<div class="field"><label>Eixo</label><select id="digEixo_'+i+'" onchange="digFilterHab('+i+')"><option value="">Todos</option>'
+      +'<option>Pensamento Computacional</option><option>Mundo Digital</option><option>Cultura Digital</option>'
+      +'</select></div>'
+      +'</div>'
+      +'<div class="dig-list" id="digList_'+i+'"></div>'
+      +'</div>'
+      +'</details>';
+
     // ── Selected card
     html += '<div id="selectedSkillWrap_'+i+'" style="display:'+(showSelected?'block':'none')+';">';
     if(h.currentHab){
@@ -1110,6 +1249,21 @@ function renderHabPanels(){
     html += '</div>'; // end hab-panel
   });
   container.innerHTML = html;
+  // Re-attach Educação Digital (SC): filtros persistidos, lista e estado do detalhe
+  ST.habilidades.forEach(function(h, i){
+    var sSel = document.getElementById('digSerie_'+i);
+    var eSel = document.getElementById('digEixo_'+i);
+    if(sSel) sSel.value = h.digSerie||'';
+    if(eSel) eSel.value = h.digEixo||'';
+    renderDigitalList(i);
+    var db = document.getElementById('digBox_'+i);
+    if(db){
+      db.addEventListener('toggle', function(){
+        ensureHabs();
+        if(ST.habilidades[i]) ST.habilidades[i].digOpen = db.open;
+      });
+    }
+  });
   // Re-attach outside click
   document.querySelectorAll('.skill-selector-wrap').forEach(function(wrap, i){
     document.addEventListener('click', function(e){
