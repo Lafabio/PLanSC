@@ -2532,15 +2532,52 @@ var FIREBASE_CONFIG = {
   projectId: 'plan-sc-ecb9d'
 };
 var FIREBASE_AUTH = null;
-try{
-  if(window.firebase && FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey.indexOf('COLE_AQUI')===-1){
-    firebase.initializeApp(FIREBASE_CONFIG);
+var FB_INITED = false;
+var FB_AUTH_LISTENER = false;
+
+function inicializarFirebase(){
+  if(!(window.firebase && FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey.indexOf('COLE_AQUI')===-1)) return false;
+  try{
+    if(!FB_INITED){ firebase.initializeApp(FIREBASE_CONFIG); FB_INITED=true; }
     FIREBASE_AUTH = firebase.auth();
     FIREBASE_AUTH.useDeviceLanguage();
-  }
-}catch(e){ console.warn('Firebase não inicializado:',e); }
+    return true;
+  }catch(e){ console.warn('Firebase não inicializado:',e); return false; }
+}
+try{ inicializarFirebase(); }catch(e){ console.warn('Firebase:',e); }
 
 function firebaseOk(){ return !!(window.firebase && FIREBASE_AUTH); }
+
+// ===== CARGA DO SDK COM FALLBACK (caso o CDN principal falhe) =====
+var FB_CDNS=[
+  'https://cdn.jsdelivr.net/npm/firebase@10.12.2/',
+  'https://unpkg.com/firebase@10.12.2/'
+];
+function carregarScriptFallback(url){
+  return new Promise(function(res){
+    var s=document.createElement('script');
+    s.src=url; s.async=false;
+    s.onload=function(){ res(true); };
+    s.onerror=function(){ res(false); };
+    document.head.appendChild(s);
+  });
+}
+async function carregarFirebaseFallback(cb){
+  cb = cb || function(){};
+  try{
+    for(var i=0;i<FB_CDNS.length;i++){
+      var base=FB_CDNS[i];
+      if(!window.firebase){
+        if(!(await carregarScriptFallback(base+'firebase-app-compat.js'))) continue;
+      }
+      if(!(window.firebase && window.firebase.auth)){
+        if(!(await carregarScriptFallback(base+'firebase-auth-compat.js'))) continue;
+      }
+      if(window.firebase && window.firebase.auth){ cb(true); return; }
+    }
+  }catch(e){}
+  cb(false);
+}
 
 function msgErroFirebase(e){
   var map={
@@ -2779,19 +2816,24 @@ function processarUsuarioLogado(user){
 }
 
 // Monitora o estado de login em tempo real (sessão é restaurada sozinha)
-FIREBASE_AUTH && FIREBASE_AUTH.onAuthStateChanged(function(user){
-  if(user){
-    if(!user.emailVerified){
-      mostrarVerifyPanel(user.email);
+function configurarAuthListener(){
+  if(FB_AUTH_LISTENER || !FIREBASE_AUTH) return;
+  FB_AUTH_LISTENER = true;
+  FIREBASE_AUTH.onAuthStateChanged(function(user){
+    if(user){
+      if(!user.emailVerified){
+        mostrarVerifyPanel(user.email);
+      } else {
+        processarUsuarioLogado(user);
+      }
     } else {
-      processarUsuarioLogado(user);
+      resetUI();
+      document.getElementById('authOverlay').classList.add('open');
+      showAuthTab('login');
     }
-  } else {
-    resetUI();
-    document.getElementById('authOverlay').classList.add('open');
-    showAuthTab('login');
-  }
-});
+  });
+}
+try{ configurarAuthListener(); }catch(e){ console.warn('Auth:',e); }
 
 function loginProfessor(professor){
   PROFESSOR_ATUAL=professor;
@@ -3043,6 +3085,13 @@ function adminStatus(id,tipo,msg){
 
 function salvarChaveGemini(){adminSalvarChave();}
 
+function mostrarSemAuth(){
+  document.getElementById('authOverlay').classList.add('open');
+  showAuthTab('login');
+  var el=document.getElementById('loginErr');
+  el.textContent='⚠️ O login não pôde ser iniciado porque o SDK do Firebase não carregou. Verifique sua conexão com a internet e recarregue a página. As chaves já estão preenchidas no FIREBASE_CONFIG.';
+}
+
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded',function(){
   filterSkills();
@@ -3055,10 +3104,18 @@ document.addEventListener('DOMContentLoaded',function(){
   aplicarLimitesV3();
 
   if(!firebaseOk()){
-    document.getElementById('authOverlay').classList.add('open');
-    showAuthTab('login');
-    var el=document.getElementById('loginErr');
-    el.textContent='⚠️ Autenticação não configurada. Cole as chaves do Firebase no início do script (FIREBASE_CONFIG).';
+    mostrarSemAuth();
+    carregarFirebaseFallback(function(ok){
+      if(ok){
+        try{
+          if(inicializarFirebase()){
+            configurarAuthListener();
+            return; // o listener restaura a sessão e o painel de login
+          }
+        }catch(e){ console.warn('Auth fallback:',e); }
+        mostrarSemAuth();
+      }
+    });
     return;
   }
 
