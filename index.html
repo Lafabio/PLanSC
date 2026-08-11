@@ -2584,6 +2584,23 @@ function limparCadastrosLocais(){
   }catch(e){}
 }
 
+// Migração v3: aplica o limite de planos gratuitos para TODOS os professores.
+// Só o admin (e-mail definido em EMAIL_ADMIN) continua ilimitado. Roda UMA vez.
+function aplicarLimitesV3(){
+  try{
+    if(localStorage.getItem('bncc_limites_v3')) return;
+    var professores=getProfessores();
+    professores.forEach(function(prof){
+      if(prof.email===EMAIL_ADMIN) return; // admin fica ilimitado
+      var d=getTokenData(prof.id);
+      d.gratuitos=LIMITE_GRATUITO; // 5 planos gratuitos
+      d.planosGerados=0;           // conta do zero
+      setTokenData(prof.id,d);
+    });
+    localStorage.setItem('bncc_limites_v3','1');
+  }catch(e){}
+}
+
 // ── TABS DO AUTH ─────────────────────────────────────────────────────────────
 function showAuthTab(tab){
   document.querySelectorAll('.auth-tab').forEach(function(t){t.classList.remove('active');});
@@ -3023,6 +3040,9 @@ document.addEventListener('DOMContentLoaded',function(){
   // Limpar cadastros e regras de cadastro antigos (v1: senha em base64 + admin semeador)
   // Remova esta chamada depois que todos os usuários antigos migrarem.
   limparCadastrosLocais();
+
+  // Aplica o limite de planos gratuitos para todos (só admin ilimitado)
+  aplicarLimitesV3();
 
   if(!firebaseOk()){
     document.getElementById('authOverlay').classList.add('open');
