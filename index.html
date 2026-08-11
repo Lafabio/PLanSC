@@ -2369,8 +2369,18 @@ async function consumirCreditoBackend(){
 // Cada pacote tem seu prÃ³prio checkout (produto) na Kiwify.
 
 function getKiwifyLinks(){
-  try{return JSON.parse(localStorage.getItem('bncc_kiwify_links'))||{};}catch(e){return {};}
+  try{
+    var stored=JSON.parse(localStorage.getItem('bncc_kiwify_links'))||null;
+    if(stored&&Object.keys(stored).length) return stored;
+  }catch(e){}
+  // Links padrão dos produtos criados na conta Kiwify (podem ser trocados no painel admin)
+  return JSON.parse(JSON.stringify(KIWIFY_LINKS_PADRAO));
 }
+var KIWIFY_LINKS_PADRAO={
+  5 :'https://pay.kiwify.com.br/TXFZMzZ',
+  10:'https://pay.kiwify.com.br/QhbEyja',
+  25:'https://pay.kiwify.com.br/3A9KBal'
+};
 function setKiwifyLinks(links){
   try{localStorage.setItem('bncc_kiwify_links',JSON.stringify(links));}catch(e){}
 }
