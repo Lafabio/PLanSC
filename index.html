@@ -612,17 +612,30 @@ body{background:#e8e5db;background-image:repeating-linear-gradient(0deg,transpar
 
       <!-- Kiwify -->
       <div class="admin-section">
-        <h3>🛒 Kiwify — Link de Pagamento</h3>
+        <h3>🛒 Kiwify — Links de Pagamento</h3>
         <div style="background:#0f1923;border:1px solid #27ae60;border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:.76rem;color:#aaa;line-height:1.7;">
-          <strong style="color:#4caf50;">💡 Como fazer:</strong> Na sua conta Kiwify, em <strong style="color:#fff;">Produtos → Link de Pagamento</strong>, copie o link do produto (válido para uso externo) e cole abaixo. Ao comprar, o aluno é enviado ao checkout da Kiwify.<br>
-          Para liberação <strong style="color:#fff;">automática</strong> de tokens, habilite o webhook <code style="color:#f9c74f;">purchase_approved</code> apontando para o seu backend (opcional).
+          <strong style="color:#4caf50;">💡 Como fazer:</strong> Na sua conta Kiwify, em <strong style="color:#fff;">Produtos → Link de Pagamento</strong>, copie o link de cada produto (10, 30 e 100 planos) e cole abaixo.<br>
+          A liberação de tokens é <strong style="color:#fff;">automática</strong> via webhook <code style="color:#f9c74f;">compra_aprovada</code>: configure no Kiwify (Apps → Webhooks) apontando para a URL do backend abaixo.<br>
+          ⚠️ O professor deve comprar com o <strong style="color:#fff;">mesmo e-mail</strong> do cadastro.
         </div>
         <div class="admin-field">
-          <label>Link de checkout do Kiwify</label>
-          <input type="text" id="kiwifyLink" placeholder="https://pay.kiwify.com.br/XXXXXXX">
+          <label>🔟 Link do pacote de 10 planos</label>
+          <input type="text" id="kiwifyLink10" placeholder="https://pay.kiwify.com.br/XXXXXXX">
+        </div>
+        <div class="admin-field">
+          <label>3️⃣0️⃣ Link do pacote de 30 planos</label>
+          <input type="text" id="kiwifyLink30" placeholder="https://pay.kiwify.com.br/XXXXXXX">
+        </div>
+        <div class="admin-field">
+          <label>1️⃣0️⃣0️⃣ Link do pacote de 100 planos</label>
+          <input type="text" id="kiwifyLink100" placeholder="https://pay.kiwify.com.br/XXXXXXX">
+        </div>
+        <div class="admin-field">
+          <label>🔗 URL do backend (webhook Kiwify)</label>
+          <input type="text" id="kiwifyBackendUrl" placeholder="https://planosc-backend-f2n9.onrender.com">
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
-          <button class="btn-admin btn-admin-pri" onclick="adminSalvarConfigKiwify()">💾 Salvar link</button>
+          <button class="btn-admin btn-admin-pri" onclick="adminSalvarConfigKiwify()">💾 Salvar configurações</button>
         </div>
         <div class="admin-status info" id="adminKiwifyStatus" style="display:none;"></div>
       </div>
@@ -1974,7 +1987,7 @@ function deletarPlano(idx){
 
 async function exportDocx(){
   // ── Verificar tokens ──
-  if(!consumirToken()){
+  if(!(await consumirToken())){
     return; // modal de compra já foi aberto por consumirToken()
   }
   var st=document.getElementById('st'),btn=document.getElementById('expBtn');
@@ -2180,7 +2193,7 @@ async function exportDocx(){
 }
 
 // ===== SISTEMA DE TOKENS / CONTROLE DE USO =====
-var LIMITE_GRATUITO = 999999;
+var LIMITE_GRATUITO = 5;
 
 function getTokenData(professorId){
   try{
@@ -2199,7 +2212,7 @@ function getPlanosRestantes(){
   if(!PROFESSOR_ATUAL) return 0;
   if(IS_ADMIN) return 9999;
   var d=getTokenData(PROFESSOR_ATUAL.id);
-  return Math.max(0,(d.gratuitos - d.planosGerados) + (d.tokens||0));
+  return Math.max(0,(d.gratuitos - d.planosGerados) + (d.tokens||0) + (KIWIFY_SALDO_BACKEND||0));
 }
 
 function getPlanosGerados(){
@@ -2208,28 +2221,52 @@ function getPlanosGerados(){
   return d.planosGerados||0;
 }
 
-function consumirToken(){
-  // Sempre libera para usuários logados — sem limite de planos
+// Consome 1 plano ao gerar: primeiro os gratuitos locais, depois os créditos
+// comprados no Kiwify (saldo autoritativo no backend). Retorna false se não
+// houver plano disponível (abre o modal de compra).
+async function consumirToken(){
   if(!PROFESSOR_ATUAL) return false;
+  if(IS_ADMIN) return true;
   var d=getTokenData(PROFESSOR_ATUAL.id);
-  d.planosGerados=(d.planosGerados||0)+1;
-  setTokenData(PROFESSOR_ATUAL.id,d);
-  atualizarUsoBadge();
-  return true;
+  var gratisRestantes=Math.max(0,(d.gratuitos||0)-(d.planosGerados||0));
+  if(gratisRestantes>0){
+    d.planosGerados=(d.planosGerados||0)+1;
+    setTokenData(PROFESSOR_ATUAL.id,d);
+    atualizarUsoBadge();
+    return true;
+  }
+  // Acabou o gratuito: usa créditos comprados (backend) primeiro
+  if(KIWIFY_SALDO_BACKEND===null){
+    try{ await sincronizarCreditosKiwify(); }catch(e){}
+  }
+  if((KIWIFY_SALDO_BACKEND||0)>0){
+    var ok=await consumirCreditoBackend();
+    if(ok){
+      atualizarUsoBadge();
+      return true;
+    }
+  }
+  // Sem créditos no backend: tenta os tokens locais concedidos pelo admin
+  if((d.tokens||0)>0){
+    d.tokens=Math.max(0,(d.tokens||0)-1);
+    setTokenData(PROFESSOR_ATUAL.id,d);
+    atualizarUsoBadge();
+    return true;
+  }
+  abrirTokenModal(true);
+  return false;
 }
 
 function atualizarUsoBadge(){
-  if(!PROFESSOR_ATUAL){
-    document.getElementById('usoBadge').style.display='none';
-    return;
-  }
-  if(IS_ADMIN){
-    document.getElementById('usoBadge').style.display='none';
-    return;
-  }
   var badge=document.getElementById('usoBadge');
-  // Planos ilimitados — ocultar badge de contagem
-  badge.style.display='none';
+  if(!badge) return;
+  if(!PROFESSOR_ATUAL||IS_ADMIN){
+    badge.style.display='none';
+    return;
+  }
+  var restantes=getPlanosRestantes();
+  badge.style.display='inline-block';
+  badge.textContent='🎟️ '+restantes+' plano'+(restantes===1?'':'s')+' disponíve'+(restantes===1?'l':'is');
 }
 
 function abrirTokenModal(forcado){
@@ -2253,11 +2290,98 @@ function fecharTokenModal(){
   document.getElementById('tokenOverlay').classList.remove('open');
 }
 
-// ===== KIWIFY — LINK DE PAGAMENTO =====
-// Sem servidor próprio: o frontend abre o checkout do Kiwify.
+// ===== KIWIFY — CRÉDITOS AUTOMÁTICOS (BACKEND) =====
+// O backend (Flask, no Render) recebe o webhook de compra aprovada da Kiwify,
+// credita os planos no e-mail do comprador e guarda o saldo. Aqui o site:
+//   • sincroniza o saldo no login;
+//   • abre o checkout de cada pacote com o e-mail pré-preenchido;
+//   • fica consultando o saldo até ele subir (confirmação automática).
 
-function getKiwifyLink(){
-  try{return (localStorage.getItem('bncc_kiwify_url')||'').trim();}catch(e){return '';}
+var KIWIFY_SALDO_BACKEND = null; // null = ainda não consultou o backend
+var KIWIFY_BACKEND_URL_DEFAULT = 'https://planosc-backend-f2n9.onrender.com';
+
+function getKiwifyBackendUrl(){
+  try{
+    var v=(localStorage.getItem('bncc_kiwify_backend_url')||'').trim();
+    return v||KIWIFY_BACKEND_URL_DEFAULT;
+  }catch(e){return KIWIFY_BACKEND_URL_DEFAULT;}
+}
+
+function getFirebaseIdToken(){
+  if(!firebaseOk()||!FIREBASE_AUTH.currentUser) return Promise.resolve(null);
+  return FIREBASE_AUTH.currentUser.getIdToken(true).catch(function(){
+    return FIREBASE_AUTH.currentUser.getIdToken(false);
+  });
+}
+
+// Consulta o saldo de créditos no backend (autoritativo). Retorna null se não der.
+async function consultarSaldoBackend(){
+  var base=getKiwifyBackendUrl();
+  var token=await getFirebaseIdToken();
+  if(!base||!token) return null;
+  var r=await fetch(base+'/api/kiwify/saldo',{headers:{'Authorization':'Bearer '+token}});
+  if(!r.ok) throw new Error('backend '+r.status);
+  var d=await r.json();
+  return d.saldo||0;
+}
+
+// Sincroniza o saldo comprado no Kiwify com o site. Chamar após o login.
+async function sincronizarCreditosKiwify(){
+  if(!PROFESSOR_ATUAL||IS_ADMIN) return null;
+  try{
+    var saldo=await consultarSaldoBackend();
+    if(saldo!==null){
+      KIWIFY_SALDO_BACKEND=saldo;
+      atualizarUsoBadge();
+    }
+    return saldo;
+  }catch(e){
+    console.warn('Não foi possível sincronizar créditos Kiwify:',e);
+    return null;
+  }
+}
+
+// Consome 1 crédito comprado no backend. Retorna true se o backend confirmou.
+async function consumirCreditoBackend(){
+  var base=getKiwifyBackendUrl();
+  var token=await getFirebaseIdToken();
+  if(!base||!token) return false;
+  try{
+    var r=await fetch(base+'/api/kiwify/consumir',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({qtd:1})
+    });
+    var d=await r.json().catch(function(){return {};});
+    if(!r.ok){
+      KIWIFY_SALDO_BACKEND=(d.saldo!==undefined)?d.saldo:0;
+      return false;
+    }
+    KIWIFY_SALDO_BACKEND=d.saldo;
+    return true;
+  }catch(e){
+    console.warn('Falha ao consumir crédito no backend:',e);
+    return false;
+  }
+}
+
+// ===== KIWIFY — LINK DE PAGAMENTO =====
+// Cada pacote tem seu próprio checkout (produto) na Kiwify.
+
+function getKiwifyLinks(){
+  try{return JSON.parse(localStorage.getItem('bncc_kiwify_links'))||{};}catch(e){return {};}
+}
+function setKiwifyLinks(links){
+  try{localStorage.setItem('bncc_kiwify_links',JSON.stringify(links));}catch(e){}
+}
+function getKiwifyLink(qtd){
+  var links=getKiwifyLinks();
+  var link=links[String(qtd)]||'';
+  if(!link){
+    // compatibilidade: link único antigo (sem crédito automático por pacote)
+    try{link=(localStorage.getItem('bncc_kiwify_url')||'').trim();}catch(e){link='';}
+  }
+  return link;
 }
 
 function kiwifyMostrarTela(tela){
@@ -2269,37 +2393,96 @@ function kiwifyMostrarTela(tela){
   document.getElementById('tokenBtnFechar').style.display='inline-block';
 }
 
-function abrirKiwify(qtd){
+var KIWIFY_POLLING_TIMER = null;
+var KIWIFY_POLLING_COUNT = 0;
+
+async function abrirKiwify(qtd){
   if(!PROFESSOR_ATUAL){alert('Faça login para continuar.');return;}
   document.getElementById('tokenOverlay').classList.add('open');
-  var link=getKiwifyLink();
+  var link=getKiwifyLink(qtd);
   if(!link){
     kiwifyMostrarTela('erro');
     document.getElementById('kiwifyErroTitulo').textContent='Kiwify não configurado';
-    document.getElementById('kiwifyErroMsg').textContent='O administrador ainda não cadastrou o link de pagamento do Kiwify no painel administrativo.';
+    document.getElementById('kiwifyErroMsg').textContent='O administrador ainda não cadastrou o link de pagamento deste pacote no painel administrativo.';
     return;
   }
   var sep=link.indexOf('?')>-1?'&':'?';
-  var url=link+sep+'bncc_qtd='+qtd+'&email='+encodeURIComponent(PROFESSOR_ATUAL.email);
+  var url=link+sep+'email='+encodeURIComponent(PROFESSOR_ATUAL.email);
   var win=window.open(url,'_blank');
   document.getElementById('kiwifyStatusTexto').textContent='Abrindo Kiwify...';
   document.getElementById('kiwifyStatusSub').innerHTML=
-    'Finalize a compra na aba do Kiwify. Seus 🎟️ tokens serão liberados assim que o pagamento for confirmado.<br><br>'+
+    'Finalize a compra na aba do Kiwify. Seus 🎟️ tokens serão liberados automaticamente.<br><br>'+
     '<a href="'+url+'" target="_blank" style="color:#90caf9;font-weight:700;">👉 Não abriu a janela? Clique aqui</a>';
   kiwifyMostrarTela('aguardando');
+
+  var saldoInicial=KIWIFY_SALDO_BACKEND;
+  if(saldoInicial===null){
+    try{saldoInicial=await sincronizarCreditosKiwify();}catch(e){}
+  }
+  if(saldoInicial===null) saldoInicial=0;
+  iniciarPollingKiwify(saldoInicial);
 }
 
-// Admin: salvar link do Kiwify
+// Fica consultando o saldo no backend até ele subir (confirmação da compra).
+function iniciarPollingKiwify(saldoInicial){
+  clearInterval(KIWIFY_POLLING_TIMER);
+  KIWIFY_POLLING_COUNT=0;
+  KIWIFY_POLLING_TIMER=setInterval(async function(){
+    KIWIFY_POLLING_COUNT++;
+    document.getElementById('kiwifyStatusTexto').textContent=
+      '🔄 Aguardando confirmação do pagamento... ('+KIWIFY_POLLING_COUNT+'s)';
+    if(KIWIFY_POLLING_COUNT>180){ // a cada 5s → 15 min
+      clearInterval(KIWIFY_POLLING_TIMER);
+      document.getElementById('kiwifyStatusTexto').textContent='⏳ Confirmação pendente';
+      document.getElementById('kiwifyStatusSub').textContent=
+        'O pagamento ainda não foi confirmado. Se você já pagou, os tokens entram automaticamente assim que a Kiwify confirmar — recarregue a página ou faça login de novo depois.';
+      return;
+    }
+    try{
+      var saldoAtual=await consultarSaldoBackend();
+      if(saldoAtual===null) return;
+      if(saldoAtual>saldoInicial){
+        clearInterval(KIWIFY_POLLING_TIMER);
+        KIWIFY_SALDO_BACKEND=saldoAtual;
+        atualizarUsoBadge();
+        document.getElementById('kiwifyStatusTexto').textContent='✅ Pagamento confirmado!';
+        document.getElementById('kiwifyStatusSub').textContent=
+          'Foram adicionados '+(saldoAtual-saldoInicial)+' plano(s). Você agora tem '+getPlanosRestantes()+' plano(s) disponível(is).';
+      }
+    }catch(e){}
+  },5000);
+}
+
+// Admin: salvar links dos pacotes + URL do backend
 function adminSalvarConfigKiwify(){
-  var url=document.getElementById('kiwifyLink').value.trim();
-  if(!url){adminStatus('adminKiwifyStatus','err','Informe o link do Kiwify.');return;}
-  if(!/^https?:\/\//.test(url)){adminStatus('adminKiwifyStatus','err','Link inválido. Deve começar com http:// ou https://');return;}
-  try{localStorage.setItem('bncc_kiwify_url',url);}catch(e){}
-  adminStatus('adminKiwifyStatus','ok','✅ Link do Kiwify salvo!');
+  var links={};
+  ['10','30','100'].forEach(function(q){
+    var el=document.getElementById('kiwifyLink'+q);
+    var v=el?el.value.trim():'';
+    if(v&&!/^https?:\/\//.test(v)){
+      adminStatus('adminKiwifyStatus','err','Link do pacote '+q+' inválido. Deve começar com http:// ou https://');
+      return;
+    }
+    if(v) links[q]=v;
+  });
+  var bu=document.getElementById('kiwifyBackendUrl').value.trim();
+  if(bu&&!/^https?:\/\//.test(bu)){adminStatus('adminKiwifyStatus','err','URL do backend inválida.');return;}
+  setKiwifyLinks(links);
+  try{
+    if(bu){localStorage.setItem('bncc_kiwify_backend_url',bu);}
+    else{localStorage.removeItem('bncc_kiwify_backend_url');}
+  }catch(e){}
+  adminStatus('adminKiwifyStatus','ok','✅ Configurações do Kiwify salvas!');
 }
 
 function adminCarregarConfigKiwify(){
-  document.getElementById('kiwifyLink').value=getKiwifyLink()||'';
+  var links=getKiwifyLinks();
+  ['10','30','100'].forEach(function(q){
+    var el=document.getElementById('kiwifyLink'+q);
+    if(el) el.value=links[q]||'';
+  });
+  var el=document.getElementById('kiwifyBackendUrl');
+  if(el) el.value=getKiwifyBackendUrl();
 }
 
 // Admin: conceder tokens a um professor
@@ -2597,6 +2780,9 @@ function loginProfessor(professor){
   atualizarUsoBadge();
   iniciarSistema();
 
+  // Sincroniza os créditos comprados no Kiwify (saldo autoritativo no backend)
+  if(!IS_ADMIN) sincronizarCreditosKiwify();
+
   // Avisar se restam poucos planos
   if(!IS_ADMIN){
     var restantes=getPlanosRestantes();
@@ -2610,6 +2796,8 @@ function loginProfessor(professor){
 function resetUI(){
   PROFESSOR_ATUAL=null;
   IS_ADMIN=false;
+  KIWIFY_SALDO_BACKEND=null;
+  if(KIWIFY_POLLING_TIMER){clearInterval(KIWIFY_POLLING_TIMER);KIWIFY_POLLING_TIMER=null;}
   try{localStorage.removeItem('bncc_sessao_atual');}catch(e){}
   try{localStorage.removeItem('bncc_session_token');}catch(e){}
   document.getElementById('perfilBadge').style.display='none';
