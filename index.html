@@ -358,22 +358,22 @@ body{background:#e8e5db;background-image:repeating-linear-gradient(0deg,transpar
     <div class="token-body">
 
       <!-- TELA: escolha do pacote -->
-      <div id="hotmartTelaEscolha">
-        <p style="color:#aaa;font-size:.82rem;margin-bottom:14px;text-align:center;">Escolha um pacote e pague com cartão ou PIX pelo Hotmart:</p>
+      <div id="kiwifyTelaEscolha">
+        <p style="color:#aaa;font-size:.82rem;margin-bottom:14px;text-align:center;">Escolha um pacote e pague com cartão ou PIX pelo Kiwify:</p>
         <div class="token-planos">
-          <div class="token-plano" onclick="abrirHotmart(10)">
+          <div class="token-plano" onclick="abrirKiwify(10)">
             <span class="tp-badge">BÁSICO</span>
             <span class="tp-qtd">10</span>
             <span class="tp-label">planos</span>
             <span class="tp-preco">R$ 9,90<br><small>R$ 0,99/plano</small></span>
           </div>
-          <div class="token-plano destaque" onclick="abrirHotmart(30)">
+          <div class="token-plano destaque" onclick="abrirKiwify(30)">
             <span class="tp-badge">⭐ POPULAR</span>
             <span class="tp-qtd">30</span>
             <span class="tp-label">planos</span>
             <span class="tp-preco">R$ 19,90<br><small>R$ 0,66/plano</small></span>
           </div>
-          <div class="token-plano" onclick="abrirHotmart(100)">
+          <div class="token-plano" onclick="abrirKiwify(100)">
             <span class="tp-badge">PRO</span>
             <span class="tp-qtd">100</span>
             <span class="tp-label">planos</span>
@@ -382,12 +382,12 @@ body{background:#e8e5db;background-image:repeating-linear-gradient(0deg,transpar
         </div>
         <div style="display:flex;align-items:center;gap:8px;margin-top:14px;padding:10px 14px;background:#0d1e0d;border:1px solid #27ae60;border-radius:8px;">
           <span style="font-size:1.1rem;">🛒</span>
-          <span style="color:#aaa;font-size:.76rem;">Pagamento seguro via <strong style="color:#fff;">Hotmart</strong> · Cartão ou PIX · Confirmação automática</span>
+          <span style="color:#aaa;font-size:.76rem;">Pagamento seguro via <strong style="color:#fff;">Kiwify</strong> · Cartão ou PIX · Confirmação automática</span>
         </div>
         <div style="margin-top:12px;padding:10px 14px;background:#0f1923;border:1px solid #1a5276;border-radius:8px;color:#aaa;font-size:.76rem;line-height:1.8;">
           <strong style="color:#fff;">Como funciona:</strong><br>
           1️⃣ Clique no pacote desejado<br>
-          2️⃣ Finalize o pagamento na página do Hotmart<br>
+          2️⃣ Finalize o pagamento na página do Kiwify<br>
           3️⃣ Seus 🎟️ tokens entram automaticamente na sua conta
         </div>
         <div class="token-free-info" style="margin-top:12px;">
@@ -397,18 +397,18 @@ body{background:#e8e5db;background-image:repeating-linear-gradient(0deg,transpar
       </div>
 
       <!-- TELA: aguardando / processando -->
-      <div id="hotmartTelaAguardando" style="display:none;text-align:center;padding:16px 0;">
+      <div id="kiwifyTelaAguardando" style="display:none;text-align:center;padding:16px 0;">
         <div style="font-size:2.5rem;margin-bottom:12px;">⏳</div>
-        <p style="color:#fff;font-weight:700;font-size:1rem;margin-bottom:8px;" id="hotmartStatusTexto">Abrindo Hotmart...</p>
-        <p style="color:#aaa;font-size:.82rem;margin-bottom:20px;" id="hotmartStatusSub">Complete o pagamento na aba do Hotmart. Seus tokens serão liberados automaticamente.</p>
+        <p style="color:#fff;font-weight:700;font-size:1rem;margin-bottom:8px;" id="kiwifyStatusTexto">Abrindo Kiwify...</p>
+        <p style="color:#aaa;font-size:.82rem;margin-bottom:20px;" id="kiwifyStatusSub">Complete o pagamento na aba do Kiwify. Seus tokens serão liberados automaticamente.</p>
         <button onclick="fecharTokenModal()" style="background:none;border:1px solid #2c3e50;color:#666;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:.8rem;font-family:Sora,sans-serif;">← Fechar</button>
       </div>
 
       <!-- TELA: sucesso de configuração -->
-      <div id="hotmartTelaErro" style="display:none;text-align:center;padding:16px 0;">
+      <div id="kiwifyTelaErro" style="display:none;text-align:center;padding:16px 0;">
         <div style="font-size:2.5rem;margin-bottom:12px;">⚠️</div>
-        <p style="color:#ef9a9a;font-weight:700;font-size:1rem;margin-bottom:8px;" id="hotmartErroTitulo">Hotmart não configurado</p>
-        <p style="color:#aaa;font-size:.82rem;margin-bottom:16px;" id="hotmartErroMsg">O administrador ainda não cadastrou o link de pagamento do Hotmart.</p>
+        <p style="color:#ef9a9a;font-weight:700;font-size:1rem;margin-bottom:8px;" id="kiwifyErroTitulo">Kiwify não configurado</p>
+        <p style="color:#aaa;font-size:.82rem;margin-bottom:16px;" id="kiwifyErroMsg">O administrador ainda não cadastrou o link de pagamento do Kiwify.</p>
         <button onclick="fecharTokenModal()" style="background:#2c3e50;border:none;color:#aaa;border-radius:6px;padding:10px 20px;cursor:pointer;font-size:.85rem;font-family:Sora,sans-serif;">Fechar</button>
       </div>
 
@@ -610,21 +610,21 @@ body{background:#e8e5db;background-image:repeating-linear-gradient(0deg,transpar
         <div class="admin-status info" id="adminKeyStatus" style="display:none;"></div>
       </div>
 
-      <!-- Hotmart -->
+      <!-- Kiwify -->
       <div class="admin-section">
-        <h3>🛒 Hotmart — Link de Pagamento</h3>
+        <h3>🛒 Kiwify — Link de Pagamento</h3>
         <div style="background:#0f1923;border:1px solid #27ae60;border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:.76rem;color:#aaa;line-height:1.7;">
-          <strong style="color:#4caf50;">💡 Como fazer:</strong> No produtor Hotmart, copie o <strong style="color:#fff;">link de checkout</strong> do produto (válido para uso externo) e cole abaixo. Ao comprar, o aluno é enviado ao checkout do Hotmart.<br>
-          Para liberação <strong style="color:#fff;">automática</strong> de tokens, habilite o webhook <code style="color:#f9c74f;">PURCHASE_APPROVED</code> apontando para o seu backend (opcional).
+          <strong style="color:#4caf50;">💡 Como fazer:</strong> Na sua conta Kiwify, em <strong style="color:#fff;">Produtos → Link de Pagamento</strong>, copie o link do produto (válido para uso externo) e cole abaixo. Ao comprar, o aluno é enviado ao checkout da Kiwify.<br>
+          Para liberação <strong style="color:#fff;">automática</strong> de tokens, habilite o webhook <code style="color:#f9c74f;">purchase_approved</code> apontando para o seu backend (opcional).
         </div>
         <div class="admin-field">
-          <label>Link de checkout do Hotmart</label>
-          <input type="text" id="hotmartLink" placeholder="https://pay.hotmart.com/XXXXXXXXX?...">
+          <label>Link de checkout do Kiwify</label>
+          <input type="text" id="kiwifyLink" placeholder="https://pay.kiwify.com.br/XXXXXXX">
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
-          <button class="btn-admin btn-admin-pri" onclick="adminSalvarConfigHotmart()">💾 Salvar link</button>
+          <button class="btn-admin btn-admin-pri" onclick="adminSalvarConfigKiwify()">💾 Salvar link</button>
         </div>
-        <div class="admin-status info" id="adminHotmartStatus" style="display:none;"></div>
+        <div class="admin-status info" id="adminKiwifyStatus" style="display:none;"></div>
       </div>
 
       <!-- Rascunhos -->
@@ -2253,53 +2253,53 @@ function fecharTokenModal(){
   document.getElementById('tokenOverlay').classList.remove('open');
 }
 
-// ===== HOTMART — LINK DE PAGAMENTO =====
-// Sem servidor próprio: o frontend abre o checkout do Hotmart.
+// ===== KIWIFY — LINK DE PAGAMENTO =====
+// Sem servidor próprio: o frontend abre o checkout do Kiwify.
 
-function getHotmartLink(){
-  try{return (localStorage.getItem('bncc_hotmart_url')||'').trim();}catch(e){return '';}
+function getKiwifyLink(){
+  try{return (localStorage.getItem('bncc_kiwify_url')||'').trim();}catch(e){return '';}
 }
 
-function hotmartMostrarTela(tela){
+function kiwifyMostrarTela(tela){
   ['Escolha','Aguardando','Erro'].forEach(function(t){
-    document.getElementById('hotmartTela'+t).style.display='none';
+    document.getElementById('kiwifyTela'+t).style.display='none';
   });
   var mapa={escolha:'Escolha',aguardando:'Aguardando',erro:'Erro'};
-  document.getElementById('hotmartTela'+(mapa[tela]||'Escolha')).style.display='block';
+  document.getElementById('kiwifyTela'+(mapa[tela]||'Escolha')).style.display='block';
   document.getElementById('tokenBtnFechar').style.display='inline-block';
 }
 
-function abrirHotmart(qtd){
+function abrirKiwify(qtd){
   if(!PROFESSOR_ATUAL){alert('Faça login para continuar.');return;}
   document.getElementById('tokenOverlay').classList.add('open');
-  var link=getHotmartLink();
+  var link=getKiwifyLink();
   if(!link){
-    hotmartMostrarTela('erro');
-    document.getElementById('hotmartErroTitulo').textContent='Hotmart não configurado';
-    document.getElementById('hotmartErroMsg').textContent='O administrador ainda não cadastrou o link de pagamento do Hotmart no painel administrativo.';
+    kiwifyMostrarTela('erro');
+    document.getElementById('kiwifyErroTitulo').textContent='Kiwify não configurado';
+    document.getElementById('kiwifyErroMsg').textContent='O administrador ainda não cadastrou o link de pagamento do Kiwify no painel administrativo.';
     return;
   }
   var sep=link.indexOf('?')>-1?'&':'?';
   var url=link+sep+'bncc_qtd='+qtd+'&email='+encodeURIComponent(PROFESSOR_ATUAL.email);
   var win=window.open(url,'_blank');
-  document.getElementById('hotmartStatusTexto').textContent='Abrindo Hotmart...';
-  document.getElementById('hotmartStatusSub').innerHTML=
-    'Finalize a compra na aba do Hotmart. Seus 🎟️ tokens serão liberados assim que o pagamento for confirmado.<br><br>'+
+  document.getElementById('kiwifyStatusTexto').textContent='Abrindo Kiwify...';
+  document.getElementById('kiwifyStatusSub').innerHTML=
+    'Finalize a compra na aba do Kiwify. Seus 🎟️ tokens serão liberados assim que o pagamento for confirmado.<br><br>'+
     '<a href="'+url+'" target="_blank" style="color:#90caf9;font-weight:700;">👉 Não abriu a janela? Clique aqui</a>';
-  hotmartMostrarTela('aguardando');
+  kiwifyMostrarTela('aguardando');
 }
 
-// Admin: salvar link do Hotmart
-function adminSalvarConfigHotmart(){
-  var url=document.getElementById('hotmartLink').value.trim();
-  if(!url){adminStatus('adminHotmartStatus','err','Informe o link do Hotmart.');return;}
-  if(!/^https?:\/\//.test(url)){adminStatus('adminHotmartStatus','err','Link inválido. Deve começar com http:// ou https://');return;}
-  try{localStorage.setItem('bncc_hotmart_url',url);}catch(e){}
-  adminStatus('adminHotmartStatus','ok','✅ Link do Hotmart salvo!');
+// Admin: salvar link do Kiwify
+function adminSalvarConfigKiwify(){
+  var url=document.getElementById('kiwifyLink').value.trim();
+  if(!url){adminStatus('adminKiwifyStatus','err','Informe o link do Kiwify.');return;}
+  if(!/^https?:\/\//.test(url)){adminStatus('adminKiwifyStatus','err','Link inválido. Deve começar com http:// ou https://');return;}
+  try{localStorage.setItem('bncc_kiwify_url',url);}catch(e){}
+  adminStatus('adminKiwifyStatus','ok','✅ Link do Kiwify salvo!');
 }
 
-function adminCarregarConfigHotmart(){
-  document.getElementById('hotmartLink').value=getHotmartLink()||'';
+function adminCarregarConfigKiwify(){
+  document.getElementById('kiwifyLink').value=getKiwifyLink()||'';
 }
 
 // Admin: conceder tokens a um professor
@@ -2705,7 +2705,7 @@ function abrirAdmin(){
   document.getElementById('adminKeyInput').value=k?'(chave salva — oculta por segurança)':'';
   document.getElementById('adminOverlay').classList.add('open');
   adminListarRascunhos();
-  adminCarregarConfigHotmart();
+  adminCarregarConfigKiwify();
 }
 
 function fecharAdmin(){
