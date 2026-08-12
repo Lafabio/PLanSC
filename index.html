@@ -7,6 +7,7 @@
 <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -2205,9 +2206,16 @@ function salvarPlano(){
   estado.label=label;
   estado.cod=cod;
   estado.prof=nome;
-  if(idx>-1){planos[idx]=estado;}else{planos.unshift(estado);}
+  if(idx>-1){
+    estado.id = planos[idx].id || novoIdPlano();
+    planos[idx]=estado;
+  }else{
+    estado.id = estado.id || novoIdPlano();
+    planos.unshift(estado);
+  }
   if(planos.length>10)planos=planos.slice(0,10);
   setSavedPlanos(planos);
+  empurrarCloud();
   var t=document.getElementById('saveToast');
   t.textContent='✅ Salvo! '+new Date().toLocaleString('pt-BR');
   setTimeout(function(){t.textContent='';},4000);
@@ -2256,6 +2264,7 @@ function deletarPlano(idx){
   var planos=getSavedPlanos();
   planos.splice(idx,1);
   setSavedPlanos(planos);
+  empurrarCloud();
   renderSavedList();
 }
 
@@ -2847,10 +2856,127 @@ async function carregarFirebaseFallback(cb){
       if(!(window.firebase && window.firebase.auth)){
         if(!(await carregarScriptFallback(base+'firebase-auth-compat.js'))) continue;
       }
+      if(window.firebase && window.firebase.auth && !window.firebase.firestore){
+        await carregarScriptFallback(base+'firebase-firestore-compat.js');
+      }
       if(window.firebase && window.firebase.auth){ cb(true); return; }
     }
   }catch(e){}
   cb(false);
+}
+
+// ===== CLOUD SYNC (Firestore) — perfil e planos iguais em qualquer máquina =====
+var FIRESTORE_DB = null;
+var FIREBASE_COLLECTION = 'usuarios';
+var CLOUD_AVISO_OK = false;
+function initFirestore(){
+  if(FIRESTORE_DB) return FIRESTORE_DB;
+  if(!(window.firebase && window.firebase.firestore && window.FB_INITED)) return null;
+  try{
+    FIRESTORE_DB = firebase.firestore();
+    FIRESTORE_DB.settings({ignoreUndefinedProperties:true});
+    return FIRESTORE_DB;
+  }catch(e){ console.warn('Firestore:',e); return null; }
+}
+function firestoreOk(){
+  return !!(initFirestore() && window.FIREBASE_AUTH && window.FIREBASE_AUTH.currentUser);
+}
+function cloudDoc(){
+  if(!firestoreOk()) return null;
+  return FIRESTORE_DB.collection(FIREBASE_COLLECTION).doc(FIREBASE_AUTH.currentUser.uid);
+}
+function novoIdPlano(){ return 'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+function cloudPerfil(){
+  var p = PROFESSOR_ATUAL || {};
+  var u = FIREBASE_AUTH && FIREBASE_AUTH.currentUser;
+  return {
+    uid: u ? u.uid : (p.id||''),
+    nome: p.nome || (u ? (u.displayName||u.email) : '') || '',
+    email: p.email || (u ? u.email : '') || '',
+    disciplina: p.disciplina || '',
+    escola: p.escola || '',
+    cidade: p.cidade || ''
+  };
+}
+// Salva perfil + planos na nuvem (best-effort; local continua funcionando na falha)
+function empurrarCloud(){
+  var doc = cloudDoc();
+  if(!doc) return Promise.resolve(false);
+  var payload = {
+    perfil: cloudPerfil(),
+    planos: getSavedPlanos(),
+    updatedAt: new Date().toISOString()
+  };
+  return doc.set(payload,{merge:true})
+    .then(function(){ return true; })
+    .catch(function(e){
+      if(!CLOUD_AVISO_OK){ CLOUD_AVISO_OK=true; console.warn('Sincronização na nuvem indisponível (verifique se o Firestore está ativado no Firebase). Salvando apenas neste computador.', e); }
+      return false;
+    });
+}
+// Une planos locais + nuvem por id (ou chave código|professor); o mais recente vence
+function mergePlanos(locais, nuvem){
+  var map={};
+  var j=0;
+  (locais||[]).concat(nuvem||[]).forEach(function(p){
+    if(!p) return;
+    var k = p.id || ((p.cod||('x'+j))+'|'+(p.prof||('y'+j)));
+    j++;
+    var cur = map[k];
+    if(!cur || String(p.savedAt||'') > String(cur.savedAt||'')) map[k]=p;
+  });
+  var arr = Object.keys(map).map(function(k){ return map[k]; });
+  arr.sort(function(a,b){
+    var sa=String(a.savedAt||''), sb=String(b.savedAt||'');
+    return sa<sb ? 1 : (sa>sb ? -1 : 0);
+  });
+  return arr.slice(0,10);
+}
+// Puxa perfil + planos da nuvem e mescla com o local
+function puxarCloud(){
+  var doc = cloudDoc();
+  if(!doc) return Promise.resolve(false);
+  return doc.get()
+    .then(function(snap){
+      if(!snap.exists) return false;
+      var d = snap.data()||{};
+      if(d.perfil){
+        var p = d.perfil;
+        if(!PROFESSOR_ATUAL){
+          PROFESSOR_ATUAL = {id:p.uid||'',nome:p.nome||'',email:p.email||'',disciplina:p.disciplina||'',escola:p.escola||'',cidade:p.cidade||''};
+        } else {
+          if(!PROFESSOR_ATUAL.nome) PROFESSOR_ATUAL.nome=p.nome||'';
+          if(!PROFESSOR_ATUAL.escola) PROFESSOR_ATUAL.escola=p.escola||'';
+          if(!PROFESSOR_ATUAL.cidade) PROFESSOR_ATUAL.cidade=p.cidade||'';
+          if(!PROFESSOR_ATUAL.disciplina) PROFESSOR_ATUAL.disciplina=p.disciplina||'';
+        }
+        try{ localStorage.setItem('bncc_sessao_atual',JSON.stringify(PROFESSOR_ATUAL)); }catch(e){}
+        if(p.escola||p.disciplina||p.nome){
+          var elEscola = document.getElementById('escola');
+          var elProf = document.getElementById('professor');
+          var elComp = document.getElementById('componente');
+          if(elEscola && !elEscola.value && p.escola) elEscola.value=p.escola;
+          if(elProf && !elProf.value && p.nome) elProf.value=p.nome;
+          if(elComp && p.disciplina) elComp.value=p.disciplina;
+        }
+      }
+      if(Array.isArray(d.planos) && d.planos.length){
+        var merged = mergePlanos(getSavedPlanos(), d.planos);
+        setSavedPlanos(merged);
+        renderSavedList();
+      }
+      return true;
+    })
+    .catch(function(e){
+      if(!CLOUD_AVISO_OK){ CLOUD_AVISO_OK=true; console.warn('Falha ao buscar dados da nuvem (Firestore não ativado?):', e); }
+      return false;
+    });
+}
+// Chamado no login: puxa da nuvem e depois garante backup do estado mesclado
+function sincronizarCloudNoLogin(){
+  puxarCloud().then(function(){
+    setTimeout(function(){ empurrarCloud(); }, 600);
+  });
 }
 
 function msgErroFirebase(e){
@@ -3123,6 +3249,9 @@ function loginProfessor(professor){
   atualizarUsoBadge();
   iniciarSistema();
 
+  // Sincroniza perfil e planos com a nuvem (Firestore) — mesmas informações em qualquer máquina
+  sincronizarCloudNoLogin();
+
   // Sincroniza os créditos comprados no Kiwify (saldo autoritativo no backend)
   if(!IS_ADMIN) sincronizarCreditosKiwify();
 
@@ -3197,6 +3326,8 @@ function salvarPerfil(){
     setProfessores(professores);
     localStorage.setItem('bncc_sessao_atual',JSON.stringify(PROFESSOR_ATUAL));
   }
+  // Sincroniza perfil na nuvem para valer em qualquer máquina
+  empurrarCloud();
   
   // Atualizar campos do plano
   if(PROFESSOR_ATUAL.escola)document.getElementById('escola').value=PROFESSOR_ATUAL.escola;
