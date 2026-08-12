@@ -1469,6 +1469,25 @@ function getActiveConteudo(){
 function getActiveMetodologia(){
   var h = getActiveHab(); return h.metodologia||'';
 }
+// Metodologia INTEGRADA: um único caminho metodológico válido para todo o plano,
+// desenvolvendo todas as habilidades concomitantemente. Fica em ST.habilidades[0].
+function getMetodologiaIntegrada(){
+  if(!ST.habilidades || !ST.habilidades.length) return '';
+  var t=(ST.habilidades[0].metodologia||'').trim();
+  if(t) return t;
+  for(var i=0;i<ST.habilidades.length;i++){
+    t=(ST.habilidades[i].metodologia||'').trim();
+    if(t) return t;
+  }
+  return '';
+}
+function setMetodologiaIntegrada(texto){
+  ST.habilidades.forEach(function(h){ h.metodologia=texto; });
+  ST.habilidades.forEach(function(h,i){
+    var el=document.getElementById('met_'+i);
+    if(el) el.value=texto;
+  });
+}
 function getActiveCriterios(){
   var h = getActiveHab(); return (h.criterios||[]);
 }
@@ -1771,12 +1790,8 @@ function updatePreview(){
     return c ? 'Hab.'+(i+1)+': '+c : '';
   }).filter(Boolean);
   var contText = contLines.join('\n\n')||'—';
-  // Metodologia por habilidade
-  var metLines = ST.habilidades.map(function(h,i){
-    var m = h.metodologia||'';
-    return m ? 'Hab.'+(i+1)+': '+m : '';
-  }).filter(Boolean);
-  var metText = metLines.join('\n\n')||'—';
+  // Metodologia INTEGRADA (uma única para todo o plano)
+  var metText = getMetodologiaIntegrada() || '—';
   // Critérios por habilidade
   var critLines = [];
   ST.habilidades.forEach(function(h,i){
@@ -1812,13 +1827,14 @@ function buildChecklist(){
   });
   var hab=getHabText();
   var nHabs=ST.habilidades.length;
-  // CADA habilidade (BNCC ou Educação Digital) precisa estar coberta em cada etapa
+  // CADA habilidade precisa estar coberta (conteúdo e critérios); a metodologia é UMA integrada p/ o plano todo
   var todasComCod  = ST.habilidades.every(function(h){ return !!(h.currentHab && h.currentHab.cod); });
   var todasBloom   = ST.habilidades.every(function(h){ return (h.bloomLevel||0)>0; });
   var todasContSimples = ST.habilidades.every(function(h){ return (h.conteudo||'').trim().length>0; });
   var todasCont    = ST.habilidades.every(function(h){ return (h.conteudo||'').trim().length>30; });
-  var todasMetSimples = ST.habilidades.every(function(h){ return (h.metodologia||'').trim().length>0; });
-  var todosMet     = ST.habilidades.every(function(h){ return (h.metodologia||'').trim().length>80; });
+  var metIntegrada = getMetodologiaIntegrada();
+  var metSimples   = metIntegrada.trim().length>0;
+  var todosMet     = metIntegrada.trim().length>80;
   var todosCrit2   = ST.habilidades.every(function(h){ return (h.criterios||[]).length>=2; });
   var instr=getInstrs();
   var checks=[
@@ -1827,8 +1843,8 @@ function buildChecklist(){
     {ok:todasBloom, label:'Nível cognitivo de Bloom identificado em CADA habilidade', tag:'Alinhamento'},
     {ok:todasContSimples, label:'Objeto de conhecimento / conteúdo definido para CADA habilidade', tag:'Obrigatório'},
     {ok:todasCont, label:'Conteúdo detalhado (30+ caracteres) em CADA habilidade', tag:'Qualidade'},
-    {ok:todasMetSimples, label:'Caminho metodológico descrito para CADA habilidade', tag:'Obrigatório'},
-    {ok:todosMet, label:'Metodologia propõe atividade no nível cognitivo do verbo em CADA habilidade', tag:'Alinhamento'},
+    {ok:metSimples, label:'Caminho metodológico INTEGRADO presente (desenvolve todas as habilidades concomitantemente)', tag:'Obrigatório'},
+    {ok:todosMet, label:'Metodologia integrada propõe atividade no nível cognitivo dos verbos (desenvolve as habilidades juntas)', tag:'Alinhamento'},
     {ok:todosCrit2, label:'Pelo menos 2 critérios observáveis em CADA habilidade', tag:'Obrigatório'},
     {ok:!!instr, label:'Instrumento(s) de avaliação selecionado(s)', tag:'Obrigatório'},
     {ok:!!document.getElementById('professor').value.trim(), label:'Nome do professor informado', tag:'Identificação'},
@@ -1836,7 +1852,7 @@ function buildChecklist(){
     {ok:ST.areas.length>0, label:'Área do conhecimento selecionada', tag:'Identificação'},
   ];
   if(nHabs>1){
-    checks.push({ok:false, label:'⚠️ Plano com '+nHabs+' habilidades: confira todos os itens acima para CADA uma (revise as abas)', tag:'Atenção'});
+    checks.push({ok:metSimples, label:'💡 Plano com '+nHabs+' habilidades desenvolvidas CONCOMITANTEMENTE por uma única metodologia integrada', tag:'Atenção'});
   }
   var html='';
   checks.forEach(function(c){
@@ -1986,7 +2002,7 @@ async function sugerirConteudo(){
 async function sugerirMet(){
   var b=document.getElementById('btnMet'),r=document.getElementById('iaMet');
   if(!getHabText()){alert('Selecione ao menos uma habilidade.');return;}
-  b.disabled=true;r.className='ai-result loading';r.innerHTML='<span class="spinner"></span>Elaborando roteiros para todas as habilidades...';
+  b.disabled=true;r.className='ai-result loading';r.innerHTML='<span class="spinner"></span>Elaborando UMA metodologia integrada para todas as habilidades...';
   syncContFieldsAll();
   var turma=document.getElementById('turma').value.trim();
   var tema=document.getElementById('temaGerador').value.trim();
@@ -1997,31 +2013,23 @@ async function sugerirMet(){
       return 'HABILIDADE '+(i+1)+'\n'+habInfoSingle(h)+'\nObjeto de conhecimento/conteúdo: '+(h.conteudo||'não especificado');
     }).join('\n\n---\n\n');
     var p=habsTudo+'\nTema gerador: '+(tema||'não informado')+'\nTurma: '+(turma||'não informado')+'\nEstratégias/Metodologias ativas selecionadas: '+(metSel||'não selecionadas')
-      +'\n\nTAREFA: elabore o CAMINHO METODOLÓGICO PARA CADA habilidade, integrando o verbo, os conteúdos de cada uma e as estratégias ativas escolhidas.'
-      +'\nCada caminho metodológico deve ter EXATAMENTE 3 momentos:'
-      +'\n1. MOMENTO INICIAL (mobilização/ativação): como engajar o aluno e ativar conhecimentos prévios.'
-      +'\n2. MOMENTO DE DESENVOLVIMENTO: atividades que EXIJAM do aluno o mesmo nível cognitivo do VERBO daquela habilidade, usando os conteúdos como meio. Seja específico sobre O QUE O ALUNO FAZ.'
-      +'\n3. MOMENTO DE SISTEMATIZAÇÃO: como consolidar a aprendizagem e verificar o desenvolvimento daquela habilidade.'
-      +'\nSe houver habilidade de Educação Digital (computação), inclua atividades próprias para ela (produção de algoritmos, uso crítico/criativo de tecnologias conforme o eixo).'
-      +'\nContexto: EJA/Ensino Médio. Use até 4 parágrafos POR habilidade. Foco no que o ALUNO faz, não no professor.'
-      +'\n\nFORMATO OBRIGATÓRIO — um bloco por habilidade, nesta ordem exata:'
-      +'\nHAB 1: [caminho metodológico da habilidade 1]'
-      +'\nHAB 2: [caminho metodológico da habilidade 2]'
-      +'\n... (até HAB '+n+')';
+      +'\n\nTAREFA: elabore UM ÚNICO CAMINHO METODOLÓGICO integrado que desenvolva TODAS as habilidades acima CONCOMITANTEMENTE, na mesma aula/percurso. As atividades devem permitir ao aluno desenvolver, ao mesmo tempo, as habilidades de área do conhecimento E as de Educação Digital (computação), quando presentes.'
+      +'\nIntegre o verbo e os conteúdos de TODAS as habilidades nas mesmas atividades (interdisciplinar e inter-relacionado), NÃO em blocos separados por habilidade.'
+      +'\nEstrutura com EXATAMENTE 3 momentos:'
+      +'\n1. MOMENTO INICIAL (mobilização/ativação): como engajar o aluno e ativar conhecimentos prévios, acionando as várias habilidades.'
+      +'\n2. MOMENTO DE DESENVOLVIMENTO: atividades práticas que EXIJAM do aluno, AO MESMO TEMPO, o nível cognitivo dos VERBOS das diversas habilidades (ex.: usar uma ferramenta digital para resolver/analisar/produzir/comunicar). Seja específico sobre O QUE O ALUNO FAZ e como cada atividade exercita mais de uma habilidade.'
+      +'\n3. MOMENTO DE SISTEMATIZAÇÃO: como consolidar a aprendizagem e verificar, de forma integrada, o desenvolvimento das habilidades trabalhadas.'
+      +'\nSe houver habilidade de Educação Digital, deixe explícito como a tecnologia é o MEIO que integra as habilidades (não atividade paralela).'
+      +'\nContexto: EJA/Ensino Médio. Máximo 5 parágrafos. Foco no que o ALUNO faz, não no professor.'
+      +'\n\nFormato: UM texto corrido (sem separar por habilidade).';
     var t=await callGemini(p);
     r.className='ai-result';r.innerHTML=t.replace(/\n/g,'<br>');
-    var blocks=ezerBlockSplit(t, n, 'caminho metodológico');
-    var preenchidas=0;
-    ST.habilidades.forEach(function(h,i){
-      if((h.metodologia||'').trim().length===0 && blocks[i]){
-        h.metodologia=blocks[i];
-        var el=document.getElementById('met_'+i);
-        if(el) el.value=blocks[i];
-        preenchidas++;
-      }
-    });
-    r.innerHTML+='<br><br><strong style="color:#27ae60;font-family:Sora,sans-serif;">✅ Caminho metodológico preenchido para '+preenchidas+' de '+n+' habilidade(s).</strong>';
-    if(preenchidas<n) r.innerHTML+='<br><span style="color:#e67e22;font-family:Sora,sans-serif;">⚠️ Revise cada aba: as habilidades sem roteiro próprio precisam ser preenchidas.</span>';
+    if((t||'').trim().length>10){
+      setMetodologiaIntegrada(t.trim());
+      r.innerHTML+='<br><br><strong style="color:#27ae60;font-family:Sora,sans-serif;">✅ Metodologia integrada criada: desenvolve as '+n+' habilidade(s) concomitantemente no mesmo percurso (vá até a etapa de Metodologia para revisar/editar).</strong>';
+    } else {
+      r.innerHTML+='<br><br><span style="color:#e67e22;font-family:Sora,sans-serif;">⚠️ Não foi possível gerar a metodologia integrada. Tente novamente.</span>';
+    }
   }
   catch(e){r.className='ai-result loading';r.innerHTML='⚠️ '+e.message;}
   b.disabled=false;
@@ -2358,10 +2366,8 @@ async function exportDocx(){
       return lv?'Habilidade '+(i+1)+': Nível '+lv+' — '+bloomNames[lv]:'';
     }).filter(Boolean).join(' | ') || (ST.bloomLevel?'Nível '+ST.bloomLevel+' — '+bloomNames[ST.bloomLevel]:'—');
     var instr   = getInstrs();
-    var met     = ST.habilidades.map(function(h,i){
-      var m = h.metodologia||'';
-      return m ? (ST.habilidades.length>1?'Habilidade '+(i+1)+':\n'+m:m) : '';
-    }).filter(Boolean).join('\n\n')||'';
+    // Metodologia INTEGRADA (uma única para todo o plano, desenvolve todas as habilidades juntas)
+    var met     = getMetodologiaIntegrada() || '—';
     var carga   = document.getElementById('cargaHoraria').value||'';
     var refs    = document.getElementById('referencias').value||'';
 
