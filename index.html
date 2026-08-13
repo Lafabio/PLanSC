@@ -710,8 +710,8 @@ body{background:#e8e5db;background-image:repeating-linear-gradient(0deg,transpar
         <div style="display:flex;flex-direction:column;gap:10px;">
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
             <div style="flex:1;min-width:160px;">
-              <label style="font-size:.72rem;color:#aaa;text-transform:uppercase;font-weight:700;display:block;margin-bottom:4px;">Email do professor</label>
-              <input type="email" id="adminTokenEmail" placeholder="professor@escola.com" style="font-family:Sora,sans-serif;font-size:.83rem;background:#0f1923;border:1.5px solid #2c3e50;border-radius:5px;padding:8px 10px;color:#fff;outline:none;width:100%;">
+              <label style="font-size:.72rem;color:#aaa;text-transform:uppercase;font-weight:700;display:block;margin-bottom:4px;">Nome ou e-mail do professor</label>
+              <input type="text" id="adminTokenEmail" placeholder="Nome do professor" style="font-family:Sora,sans-serif;font-size:.83rem;background:#0f1923;border:1.5px solid #2c3e50;border-radius:5px;padding:8px 10px;color:#fff;outline:none;width:100%;">
             </div>
             <div style="width:90px;">
               <label style="font-size:.72rem;color:#aaa;text-transform:uppercase;font-weight:700;display:block;margin-bottom:4px;">Qtd. tokens</label>
@@ -2990,7 +2990,7 @@ function adminCarregarConfigKiwify(){
 // Admin: conceder tokens a um professor
 function adminConcederTokens(emailProf, qtd){
   var professores=getProfessores();
-  var prof=professores.find(function(p){return p.email===emailProf;});
+  var prof=professores.find(function(p){return p.email===emailProf||p.nome===emailProf;});
   if(!prof){alert('Professor não encontrado: '+emailProf);return;}
   var d=getTokenData(prof.id);
   d.tokens=(d.tokens||0)+qtd;
@@ -3001,7 +3001,7 @@ function adminConcederTokens(emailProf, qtd){
 // Admin: resetar uso gratuito de um professor
 function adminResetarUso(emailProf){
   var professores=getProfessores();
-  var prof=professores.find(function(p){return p.email===emailProf;});
+  var prof=professores.find(function(p){return p.email===emailProf||p.nome===emailProf;});
   if(!prof){alert('Professor não encontrado.');return;}
   var d=getTokenData(prof.id);
   d.planosGerados=0;
@@ -3095,13 +3095,29 @@ function cloudDoc(){
   return FIRESTORE_DB.collection(FIREBASE_COLLECTION).doc(FIREBASE_AUTH.currentUser.uid);
 }
 function novoIdPlano(){ return 'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+function emailEhAdmin(email){ return String(email||'').toLowerCase()===String(EMAIL_ADMIN).toLowerCase(); }
+// E-mail real do usuário logado (sessão atual, não vai para armazenamento)
+function emailAtual(){
+  try{
+    var u=FIREBASE_AUTH&&FIREBASE_AUTH.currentUser;
+    if(u&&u.email) return u.email;
+  }catch(e){}
+  return PROFESSOR_ATUAL?PROFESSOR_ATUAL.email:'';
+}
+// Cópia do perfil pronta para persistir: só o admin mantém o e-mail.
+function sessaoParaSalvar(){
+  if(!PROFESSOR_ATUAL) return {};
+  var c=Object.assign({},PROFESSOR_ATUAL);
+  if(!emailEhAdmin(c.email)) c.email='';
+  return c;
+}
 function cloudPerfil(){
   var p = PROFESSOR_ATUAL || {};
   var u = FIREBASE_AUTH && FIREBASE_AUTH.currentUser;
   return {
     uid: u ? u.uid : (p.id||''),
     nome: p.nome || (u ? (u.displayName||u.email) : '') || '',
-    email: p.email || (u ? u.email : '') || '',
+    email: emailEhAdmin(emailAtual()) ? EMAIL_ADMIN : '',
     disciplina: p.disciplina || '',
     escola: p.escola || '',
     cidade: p.cidade || '',
@@ -3167,7 +3183,7 @@ function puxarCloud(){
           var kId=PROFESSOR_ATUAL.id||(FIREBASE_AUTH&&FIREBASE_AUTH.currentUser?FIREBASE_AUTH.currentUser.uid:'');
           try{ var kls=kId?localStorage.getItem('groq_key_'+kId):''; if(kls) window.GROQ_KEY=kls; }catch(e2){}
         }
-        try{ localStorage.setItem('bncc_sessao_atual',JSON.stringify(PROFESSOR_ATUAL)); }catch(e){}
+        try{ localStorage.setItem('bncc_sessao_atual',JSON.stringify(sessaoParaSalvar())); }catch(e){}
         if(p.escola||p.disciplina||p.nome){
           var elEscola = document.getElementById('escola');
           var elProf = document.getElementById('professor');
@@ -3232,7 +3248,10 @@ function registrarPerfil(uid, dados){
   var lista=getProfessores();
   var idx=lista.findIndex(function(p){return p.id===uid;});
   var novo={id:uid,nome:dados.nome||'',email:dados.email||'',disciplina:dados.disciplina||'',escola:dados.escola||'',cidade:dados.cidade||'',dataCadastro:dados.dataCadastro||new Date().toISOString()};
-  if(idx>-1){lista[idx]=novo;}else{lista.push(novo);}
+  // Persiste SEM e-mail (apenas o admin mantém o dele)
+  var persistir=Object.assign({},novo);
+  if(!emailEhAdmin(novo.email)) persistir.email='';
+  if(idx>-1){lista[idx]=persistir;}else{lista.push(persistir);}
   setProfessores(lista);
   return novo;
 }
@@ -3246,6 +3265,50 @@ function limparCadastrosLocais(){
     });
     localStorage.setItem('bncc_migrado_v2','1');
   }catch(e){}
+}
+
+// Migração v4: remove TODOS os e-mails persistidos (localStorage e nuvem),
+// mantendo apenas o do admin. Roda UMA vez.
+function limparEmailsLegados(){
+  try{
+    if(localStorage.getItem('bncc_sem_email_v4')) return;
+    // 1) bncc_professores
+    var profs=getProfessores();
+    var mudou=false;
+    profs.forEach(function(p){
+      if(p && p.email && !emailEhAdmin(p.email)){
+        p.email=''; mudou=true;
+      }
+    });
+    if(mudou) setProfessores(profs);
+    // 2) bncc_sessao_atual
+    try{
+      var s=JSON.parse(localStorage.getItem('bncc_sessao_atual')||'null');
+      if(s && s.email && !emailEhAdmin(s.email)){
+        s.email='';
+        localStorage.setItem('bncc_sessao_atual',JSON.stringify(s));
+      }
+    }catch(e){}
+    // 3) pendentes bncc_pendente_*
+    for(var i=localStorage.length-1;i>=0;i--){
+      var k=localStorage.key(i);
+      if(k && k.indexOf('bncc_pendente_')===0){
+        try{
+          var pd=JSON.parse(localStorage.getItem(k)||'null');
+          if(pd && pd.email){ delete pd.email; localStorage.setItem(k,JSON.stringify(pd)); }
+        }catch(e){}
+      }
+    }
+    localStorage.setItem('bncc_sem_email_v4','1');
+  }catch(e){}
+}
+// Limpa o e-mail do perfil na nuvem (Firestore) quando não é o do admin.
+function limparEmailCloud(){
+  var doc=cloudDoc();
+  if(!doc) return;
+  var u=FIREBASE_AUTH&&FIREBASE_AUTH.currentUser;
+  if(!u||emailEhAdmin(u.email)) return;
+  doc.set({perfil:{email:''}},{merge:true}).catch(function(e){});
 }
 
 // Migração v3: aplica o limite de planos gratuitos para TODOS os professores.
@@ -3328,8 +3391,8 @@ async function fazerCadastro(){
     var cred=await FIREBASE_AUTH.createUserWithEmailAndPassword(email,senha);
     var user=cred.user;
     try{await user.updateProfile({displayName:nome});}catch(_){}
-    // Guarda dados do professor (sem senha) para concluir após a confirmação
-    try{localStorage.setItem('bncc_pendente_'+user.uid,JSON.stringify({nome:nome,email:email,disciplina:disciplina,escola:escola,cidade:cidade}));}catch(_){}
+    // Guarda dados do professor (sem senha e sem e-mail) para concluir após a confirmação
+    try{localStorage.setItem('bncc_pendente_'+user.uid,JSON.stringify({nome:nome,disciplina:disciplina,escola:escola,cidade:cidade}));}catch(_){}
   }catch(e){
     errEl.textContent='⚠️ '+msgErroFirebase(e);
     return;
@@ -3462,9 +3525,13 @@ function loginProfessor(professor){
   document.getElementById('perfilNome').textContent='👤 Prof. '+professor.nome;
   document.getElementById('btnAdminPanel').style.display=IS_ADMIN?'inline-block':'none';
 
-  try{localStorage.setItem('bncc_sessao_atual',JSON.stringify(professor));}catch(e){}
+  try{localStorage.setItem('bncc_sessao_atual',JSON.stringify(sessaoParaSalvar()));}catch(e){}
   atualizarUsoBadge();
   iniciarSistema();
+
+  // Garante que o e-mail não fique persistido (localStorage/nuvem) — só o do admin
+  limparEmailsLegados();
+  if(!IS_ADMIN) limparEmailCloud();
 
   // Sincroniza perfil e planos com a nuvem (Firestore) — mesmas informações em qualquer máquina
   sincronizarCloudNoLogin();
@@ -3559,9 +3626,9 @@ function salvarPerfil(){
   var professores=getProfessores();
   var idx=professores.findIndex(function(p){return p.id===PROFESSOR_ATUAL.id;});
   if(idx>-1){
-    professores[idx]=PROFESSOR_ATUAL;
+    professores[idx]=sessaoParaSalvar();
     setProfessores(professores);
-    localStorage.setItem('bncc_sessao_atual',JSON.stringify(PROFESSOR_ATUAL));
+    localStorage.setItem('bncc_sessao_atual',JSON.stringify(sessaoParaSalvar()));
   }
   // Sincroniza perfil na nuvem para valer em qualquer máquina (inclui a chave)
   empurrarCloud();
@@ -3694,7 +3761,7 @@ function adminVerUsoProfessor(){
     var tokens=d.tokens||0;
     return '<div style="display:flex;align-items:center;gap:8px;padding:5px 6px;border-bottom:1px solid #1a2535;flex-wrap:wrap;">'+
       '<span style="flex:1;color:#fff;min-width:140px;">'+esc(p.nome)+'</span>'+
-      '<span style="color:#888;font-size:.7rem;flex:1;">'+esc(p.email)+'</span>'+
+      (p.email?'<span style="color:#888;font-size:.7rem;flex:1;">'+esc(p.email)+'</span>':'')+
       '<span style="color:#f9c74f;white-space:nowrap;">📝 '+( d.planosGerados||0)+' gerados</span>'+
       '<span style="color:#90caf9;white-space:nowrap;">🆓 '+restGrat+' grát.</span>'+
       '<span style="color:#4caf50;white-space:nowrap;">🎟️ '+tokens+' tokens</span>'+
@@ -3756,6 +3823,9 @@ document.addEventListener('DOMContentLoaded',function(){
   // Limpar cadastros e regras de cadastro antigos (v1: senha em base64 + admin semeador)
   // Remova esta chamada depois que todos os usuários antigos migrarem.
   limparCadastrosLocais();
+
+  // Remove e-mails persistidos (localStorage) — só o admin mantém o dele
+  limparEmailsLegados();
 
   // Aplica o limite de planos gratuitos para todos (só admin ilimitado)
   aplicarLimitesV3();
