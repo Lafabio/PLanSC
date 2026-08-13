@@ -1788,6 +1788,22 @@ function removerLogo(e){
     var f=ev.dataTransfer.files && ev.dataTransfer.files[0];
     if(f) definirLogo(f);
   });
+  // Colar imagem (Ctrl+V) para inserir o logo
+  document.addEventListener('paste',function(ev){
+    if(ev.clipboardData && ev.clipboardData.items){
+      for(var i=0;i<ev.clipboardData.items.length;i++){
+        var it=ev.clipboardData.items[i];
+        if(it && it.type && /^image\//.test(it.type)){
+          var f=it.getAsFile();
+          if(f){
+            ev.preventDefault();
+            definirLogo(f);
+            return;
+          }
+        }
+      }
+    }
+  });
   carregarLogoSaved();
 })();
 
@@ -2030,7 +2046,7 @@ async function analisarIA(){
   var b=document.getElementById('btnIA'),r=document.getElementById('iaResult');
   if(!getHabText()){alert('Selecione ou digite uma habilidade primeiro.');return;}
   b.disabled=true;r.className='ai-result loading';r.innerHTML='<span class="spinner"></span>Analisando...';
-  try{var t=await callGemini('Analise esta habilidade:\n\n'+habInfoAll()+'\n\nForneça:\n1. Verbos identificados e nível de Bloom confirmado\n2. O que o aluno precisa FAZER (ação cognitiva)\n3. Sobre o quê / com o quê\n4. Para quê (finalidade)\n5. Alertas sobre erros comuns no planejamento desta habilidade\n\nSeja direto e técnico.');r.className='ai-result';r.innerHTML=t.replace(/\n/g,'<br>');}
+  try{var t=await callGemini('Analise esta habilidade:\n\n'+habInfoAll()+'\n\nForneça:\n1. Verbos identificados e nível de Bloom confirmado\n2. O que o aluno precisa FAZER (ação cognitiva)\n3. Sobre o quê / com o quê\n4. Para quê (finalidade)\n5. Alertas sobre erros comuns no planejamento desta habilidade\n\nSeja direto e técnico. Responda SEMPRE em português do Brasil.');r.className='ai-result';r.innerHTML=t.replace(/\n/g,'<br>');}
   catch(e){r.className='ai-result loading';r.innerHTML='⚠️ '+e.message;}
   b.disabled=false;
 }
@@ -2092,9 +2108,11 @@ async function sugerirConteudo(){
       +'\n\nFORMATO OBRIGATÓRIO — um bloco por habilidade, nesta ordem exata:'
       +'\nHAB 1: [conteúdos da habilidade 1]'
       +'\nHAB 2: [conteúdos da habilidade 2]'
-      +'\n... (continue até HAB '+n+')';
+      +'\n... (continue até HAB '+n+')'
+      +'\n\nResponda SEMPRE em português do Brasil.';
     var t=await callGemini(p);
     r.className='ai-result';r.innerHTML=t.replace(/\n/g,'<br>');
+
     var blocks=ezerBlockSplit(t, n, 'conteúdos');
     var preenchidas=0;
     ST.habilidades.forEach(function(h,i){
@@ -2134,7 +2152,8 @@ async function sugerirMet(){
       +'\n3. MOMENTO DE SISTEMATIZAÇÃO: como consolidar a aprendizagem e verificar, de forma integrada, o desenvolvimento das habilidades trabalhadas.'
       +'\nSe houver habilidade de Educação Digital, deixe explícito como a tecnologia é o MEIO que integra as habilidades (não atividade paralela).'
       +'\nContexto: EJA/Ensino Médio. Máximo 5 parágrafos. Foco no que o ALUNO faz, não no professor.'
-      +'\n\nFormato: UM texto corrido (sem separar por habilidade).';
+      +'\n\nFormato: UM texto corrido (sem separar por habilidade).'
+      +'\n\nResponda SEMPRE em português do Brasil.';
     var t=await callGemini(p);
     r.className='ai-result';r.innerHTML=t.replace(/\n/g,'<br>');
     if((t||'').trim().length>10){
@@ -2187,7 +2206,8 @@ async function sugerirCrit(){
       +'\n- Relacionados ao conteúdo E ao que o aluno faz na metodologia descrita'
       +'\n- NUNCA use: "demonstrar progressão", "mostrar envolvimento", "participação ativa"'
       +'\n\nFORMATO OBRIGATÓRIO — um bloco por habilidade, sem variações:'
-      +formato;
+      +formato
+      +'\n\nResponda SEMPRE em português do Brasil.';
 
     var t = await callGemini(p);
     r.className='ai-result';r.innerHTML=t.replace(/\n/g,'<br>');
