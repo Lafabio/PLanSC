@@ -610,6 +610,25 @@ body{background:#e8e5db;background-image:repeating-linear-gradient(0deg,transpar
         <label>Cidade / Estado</label>
         <input type="text" id="editCidade" placeholder="Ex: Laguna - SC">
       </div>
+      <div style="border-top:1px solid #23395e;padding-top:12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <label style="font-weight:600;color:#fff;">🔑 Chave da API Groq (IA)</label>
+          <a href="https://console.groq.com/keys" target="_blank" style="font-size:.72rem;color:#90caf9;">Obter chave no Groq →</a>
+        </div>
+        <input type="password" id="editGroqKey" placeholder="Cole sua chave aqui (gsk_...)" autocomplete="off">
+        <details style="margin-top:8px;font-size:.74rem;color:#aaa;">
+          <summary style="cursor:pointer;color:#90caf9;">📘 Passo a passo para criar sua chave</summary>
+          <ol style="margin:8px 0 0 18px;line-height:1.7;">
+            <li>Acesse <a href="https://console.groq.com" target="_blank" style="color:#90caf9;">console.groq.com</a> e faça login (ou crie a conta gratuita com seu e-mail).</li>
+            <li>No menu lateral, clique em <strong style="color:#fff;">API Keys</strong>.</li>
+            <li>Clique em <strong style="color:#fff;">Create API Key</strong> (Criar chave).</li>
+            <li>Dê um nome (ex.: "Planejador BNCC") e pressione <strong style="color:#fff;">Create</strong>.</li>
+            <li>Copie a chave gerada (começa com <code style="color:#f9c74f;">gsk_</code>) — ela só é mostrada uma vez.</li>
+            <li>Cole a chave no campo acima e clique em <strong style="color:#fff;">💾 Salvar</strong>.</li>
+          </ol>
+        </details>
+        <div style="font-size:.7rem;color:#7f8c8d;margin-top:6px;" id="editGroqKeyStatus"></div>
+      </div>
       <div style="display:flex;gap:8px;margin-top:8px;">
         <button onclick="salvarPerfil()" style="flex:1;padding:10px;background:#1a5276;color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;">💾 Salvar</button>
         <button onclick="fecharEditPerfil()" style="flex:1;padding:10px;background:#2c3e50;color:#aaa;border:none;border-radius:6px;font-weight:600;cursor:pointer;">Cancelar</button>
@@ -3080,7 +3099,8 @@ function cloudPerfil(){
     email: p.email || (u ? u.email : '') || '',
     disciplina: p.disciplina || '',
     escola: p.escola || '',
-    cidade: p.cidade || ''
+    cidade: p.cidade || '',
+    groqKey: (p.groqKey||window.GROQ_KEY||'')
   };
 }
 // Salva perfil + planos na nuvem (best-effort; local continua funcionando na falha)
@@ -3128,12 +3148,19 @@ function puxarCloud(){
       if(d.perfil){
         var p = d.perfil;
         if(!PROFESSOR_ATUAL){
-          PROFESSOR_ATUAL = {id:p.uid||'',nome:p.nome||'',email:p.email||'',disciplina:p.disciplina||'',escola:p.escola||'',cidade:p.cidade||''};
+          PROFESSOR_ATUAL = {id:p.uid||'',nome:p.nome||'',email:p.email||'',disciplina:p.disciplina||'',escola:p.escola||'',cidade:p.cidade||'',groqKey:p.groqKey||''};
         } else {
           if(!PROFESSOR_ATUAL.nome) PROFESSOR_ATUAL.nome=p.nome||'';
           if(!PROFESSOR_ATUAL.escola) PROFESSOR_ATUAL.escola=p.escola||'';
           if(!PROFESSOR_ATUAL.cidade) PROFESSOR_ATUAL.cidade=p.cidade||'';
           if(!PROFESSOR_ATUAL.disciplina) PROFESSOR_ATUAL.disciplina=p.disciplina||'';
+          if(!PROFESSOR_ATUAL.groqKey && p.groqKey) PROFESSOR_ATUAL.groqKey=p.groqKey;
+        }
+        // Restaura a chave Groq do professor logado
+        if(p.groqKey){ window.GROQ_KEY=p.groqKey; }
+        else {
+          var kId=PROFESSOR_ATUAL.id||(FIREBASE_AUTH&&FIREBASE_AUTH.currentUser?FIREBASE_AUTH.currentUser.uid:'');
+          try{ var kls=kId?localStorage.getItem('groq_key_'+kId):''; if(kls) window.GROQ_KEY=kls; }catch(e2){}
         }
         try{ localStorage.setItem('bncc_sessao_atual',JSON.stringify(PROFESSOR_ATUAL)); }catch(e){}
         if(p.escola||p.disciplina||p.nome){
@@ -3453,6 +3480,7 @@ function loginProfessor(professor){
 function resetUI(){
   PROFESSOR_ATUAL=null;
   IS_ADMIN=false;
+  window.GROQ_KEY='';
   KIWIFY_SALDO_BACKEND=null;
   if(KIWIFY_POLLING_TIMER){clearInterval(KIWIFY_POLLING_TIMER);KIWIFY_POLLING_TIMER=null;}
   try{localStorage.removeItem('bncc_sessao_atual');}catch(e){}
@@ -3490,6 +3518,13 @@ function editarPerfil(){
   document.getElementById('editDisciplina').value=PROFESSOR_ATUAL.disciplina||'';
   document.getElementById('editEscola').value=PROFESSOR_ATUAL.escola||'';
   document.getElementById('editCidade').value=PROFESSOR_ATUAL.cidade||'';
+  var keyEl=document.getElementById('editGroqKey');
+  if(keyEl){
+    var k=window.GROQ_KEY||'';
+    keyEl.value=k?'(chave salva — digite uma nova para substituir)':'';
+  }
+  var st=document.getElementById('editGroqKeyStatus');
+  if(st) st.textContent = (window.GROQ_KEY?('✅ Chave ativa: '+window.GROQ_KEY.substring(0,8)+'••••'):'⚠️ Nenhuma chave cadastrada. A IA não funcionará até você adicionar a sua.');
   document.getElementById('editPerfilOverlay').style.display='flex';
 }
 
@@ -3502,6 +3537,18 @@ function salvarPerfil(){
   PROFESSOR_ATUAL.disciplina=document.getElementById('editDisciplina').value;
   PROFESSOR_ATUAL.escola=document.getElementById('editEscola').value.trim();
   PROFESSOR_ATUAL.cidade=document.getElementById('editCidade').value.trim();
+
+  // Chave Groq do professor (por usuário)
+  var keyEl=document.getElementById('editGroqKey');
+  var novaKey=(keyEl&&keyEl.value)?keyEl.value.trim():'';
+  if(novaKey && novaKey.indexOf('(chave salva')===-1){
+    if(!novaKey.startsWith('gsk_')){
+      var st=document.getElementById('editGroqKeyStatus');
+      if(st){st.textContent='⛔ Chave inválida — deve começar com "gsk_".';}
+      return;
+    }
+    salvarChaveUsuario(novaKey);
+  }
   
   // Atualizar no localStorage
   var professores=getProfessores();
@@ -3511,7 +3558,7 @@ function salvarPerfil(){
     setProfessores(professores);
     localStorage.setItem('bncc_sessao_atual',JSON.stringify(PROFESSOR_ATUAL));
   }
-  // Sincroniza perfil na nuvem para valer em qualquer máquina
+  // Sincroniza perfil na nuvem para valer em qualquer máquina (inclui a chave)
   empurrarCloud();
   
   // Atualizar campos do plano
@@ -3525,7 +3572,11 @@ function salvarPerfil(){
 
 function iniciarSistema(){
   try{
-    var k=localStorage.getItem('groq_api_key');
+    // Chave Groq do PROFESSOR logado (cada usuário tem a própria)
+    var kId=PROFESSOR_ATUAL?PROFESSOR_ATUAL.id:'';
+    var k='';
+    if(PROFESSOR_ATUAL && PROFESSOR_ATUAL.groqKey){ k=PROFESSOR_ATUAL.groqKey; }
+    else if(kId){ try{k=localStorage.getItem('groq_key_'+kId)||'';}catch(e2){} }
     if(k){window.GROQ_KEY=k;}
   }catch(e){}
   
@@ -3546,9 +3597,22 @@ function iniciarSistema(){
 }
 
 // ── ADMIN ────────────────────────────────────────────────────────────────────
+// Chave Groq do usuário logado (local por uid + window.GROQ_KEY)
+function chaveUsuarioAtual(){
+  if(window.GROQ_KEY) return window.GROQ_KEY;
+  var id=PROFESSOR_ATUAL?PROFESSOR_ATUAL.id:(FIREBASE_AUTH&&FIREBASE_AUTH.currentUser?FIREBASE_AUTH.currentUser.uid:'');
+  try{return id?localStorage.getItem('groq_key_'+id)||'':'';}catch(e){return '';}
+}
+function salvarChaveUsuario(k){
+  window.GROQ_KEY=k;
+  if(PROFESSOR_ATUAL) PROFESSOR_ATUAL.groqKey=k;
+  var id=PROFESSOR_ATUAL?PROFESSOR_ATUAL.id:(FIREBASE_AUTH&&FIREBASE_AUTH.currentUser?FIREBASE_AUTH.currentUser.uid:'');
+  try{ if(id) localStorage.setItem('groq_key_'+id,k); }catch(e){}
+  empurrarCloud();
+}
 function abrirAdmin(){
   if(!IS_ADMIN){alert('⚠️ Acesso restrito ao administrador.');return;}
-  var k=localStorage.getItem('groq_api_key')||'';
+  var k=chaveUsuarioAtual();
   document.getElementById('adminKeyInput').value=k?'(chave salva — oculta por segurança)':'';
   document.getElementById('adminOverlay').classList.add('open');
   adminListarRascunhos();
@@ -3564,22 +3628,20 @@ function adminSalvarChave(){
   var k=document.getElementById('adminKeyInput').value.trim();
   if(!k||k.startsWith('(chave salva')){adminStatus('adminKeyStatus','err','Digite a chave no campo primeiro.');return;}
   if(!k.startsWith('gsk_')){adminStatus('adminKeyStatus','err','Chave inválida — deve começar com "gsk_".');return;}
-  window.GROQ_KEY=k;
-  try{localStorage.setItem('groq_api_key',k);}catch(e){}
+  salvarChaveUsuario(k);
   document.getElementById('adminKeyInput').value='(chave salva — oculta por segurança)';
   adminStatus('adminKeyStatus','ok','✅ Chave salva com sucesso! A IA está ativa.');
 }
 
 function adminVerChave(){
-  var k=localStorage.getItem('groq_api_key')||'';
+  var k=chaveUsuarioAtual();
   if(!k){adminStatus('adminKeyStatus','err','Nenhuma chave configurada.');return;}
   adminStatus('adminKeyStatus','info','Chave atual: '+k.substring(0,8)+'••••••••'+k.substring(k.length-4));
 }
 
 function adminApagarChave(){
   if(!confirm('Apagar a chave de IA?'))return;
-  window.GROQ_KEY='';
-  try{localStorage.removeItem('groq_api_key');}catch(e){}
+  salvarChaveUsuario('');
   document.getElementById('adminKeyInput').value='';
   adminStatus('adminKeyStatus','err','🗑 Chave removida. A IA está desativada.');
 }
