@@ -2362,11 +2362,17 @@ function restaurarEstado(s){
   renderHabTabs();
   return true;
 }
+// Chave de rascunhos no localStorage, isolada POR USUÁRIO (cada professor vê só os seus)
+function savedPlanosKey(){
+  var uid = (PROFESSOR_ATUAL&&PROFESSOR_ATUAL.id) ||
+            (FIREBASE_AUTH&&FIREBASE_AUTH.currentUser?FIREBASE_AUTH.currentUser.uid:'');
+  return uid ? ('bncc_planos_'+uid) : 'bncc_planos';
+}
 function getSavedPlanos(){
-  try{var d=localStorage.getItem('bncc_planos');return d?JSON.parse(d):[];}catch(e){return[];}
+  try{var d=localStorage.getItem(savedPlanosKey());return d?JSON.parse(d):[];}catch(e){return[];}
 }
 function setSavedPlanos(arr){
-  try{localStorage.setItem('bncc_planos',JSON.stringify(arr));}catch(e){}
+  try{localStorage.setItem(savedPlanosKey(),JSON.stringify(arr));}catch(e){}
 }
 
 function salvarPlano(){
@@ -3540,10 +3546,39 @@ function configurarAuthListener(){
 }
 try{ configurarAuthListener(); }catch(e){ console.warn('Auth:',e); }
 
+// Migração v5: divide a lista antiga e compartilhada 'bncc_planos' por usuário.
+// Cada rascunho tem o campo 'prof' (nome do professor); na 1ª entrada de cada
+// usuário, os rascunhos dele são movidos para a chave própria (bncc_planos_<uid>).
+function migrarPlanosPorUsuario(){
+  if(!PROFESSOR_ATUAL||!PROFESSOR_ATUAL.id) return;
+  try{
+    var legado=JSON.parse(localStorage.getItem('bncc_planos')||'null');
+    if(!Array.isArray(legado)||!legado.length) return;
+    var meuId=PROFESSOR_ATUAL.id;
+    var meuNome=(PROFESSOR_ATUAL.nome||'').trim().toLowerCase();
+    var key=savedPlanosKey();
+    var atuais=getSavedPlanos();
+    var restante=[]; var movidos=[];
+    legado.forEach(function(p){
+      var dono=(p&&p.prof?String(p.prof).trim().toLowerCase():'');
+      if(meuNome && dono===meuNome){ movidos.push(p); }
+      else{ restante.push(p); }
+    });
+    if(movidos.length){
+      var mesclado=mergePlanos(atuais, movidos);
+      setSavedPlanos(mesclado);
+    }
+    localStorage.setItem('bncc_planos',JSON.stringify(restante));
+  }catch(e){}
+}
+
 function loginProfessor(professor){
   PROFESSOR_ATUAL=professor;
   IS_ADMIN=(professor.email===EMAIL_ADMIN);
   if(!professor.disciplina) professor.disciplina='';
+
+  // Isola os rascunhos do professor (migração da lista compartilhada antiga)
+  migrarPlanosPorUsuario();
 
   document.getElementById('authOverlay').classList.remove('open');
   document.getElementById('perfilBadge').style.display='inline-block';
