@@ -2662,9 +2662,14 @@ async function exportDocx(){
 
     var blob=await Packer.toBlob(doc);
     var url=URL.createObjectURL(blob);
+    // Nome do arquivo: Pla-mês vigente-turma
+    var mesNome=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'][new Date().getMonth()];
+    var anoAtual=new Date().getFullYear();
+    var turmaNome=(document.getElementById('turma').value||'').trim();
+    var baseNome='Pla-'+mesNome+'-'+anoAtual+(turmaNome?'-'+turmaNome:'');
     var a=document.createElement('a');
     a.href=url;
-    a.download='Plano_'+(prof||'Plano').replace(/[^a-zA-Z0-9]/g,'_')+'.docx';
+    a.download=baseNome.replace(/[^a-zA-Z0-9\-]/g,'_')+'.docx';
     document.body.appendChild(a);a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
