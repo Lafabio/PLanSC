@@ -2473,7 +2473,7 @@ async function exportDocx(){
     var B=function(t){return new TextRun({text:String(t||''),bold:true,font:'Arial',size:20,boldComplexScript:true});};
     var N=function(t){return new TextRun({text:String(t||''),font:'Arial',size:20});};
 
-    // Célula rótulo (col esquerda) — fundo EEE8D8, bold, centralizado vertical
+    // Célula rótulo (col esquerda) — fundo EEE8D8, bold, centralizado vertical, texto alinhado à esquerda
     var LC=function(label){
       return new TableCell({
         width:{size:2520,type:WidthType.DXA},
@@ -2481,7 +2481,7 @@ async function exportDocx(){
         shading:{fill:'EEE8D8',type:ShadingType.CLEAR},
         margins:{top:80,bottom:80,left:160,right:120},
         verticalAlign:VerticalAlign.CENTER,
-        children:[new Paragraph({alignment:AlignmentType.JUSTIFIED,children:[B(label)]})]
+        children:[new Paragraph({alignment:AlignmentType.LEFT,children:[B(label)]})]
       });
     };
 
