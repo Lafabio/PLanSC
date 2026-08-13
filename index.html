@@ -1732,8 +1732,7 @@ function habLinhaPlano(h, i){
   return line;
 }
 
-// ===== LOGO DA ESCOLA (drag & drop) =====
-function logoDataURL(){ return window.LOGO_DATA || ''; }
+// ===== LOGO DA ESCOLA (drag & drop) =====function logoDataURL(){ return window.LOGO_DATA || ''; }
 function definirLogo(file){
   if(!file) return;
   var ok = /^image\/(png|jpeg|jpg|webp|svg\+xml)$/i.test(file.type);
@@ -1791,6 +1790,32 @@ function removerLogo(e){
   });
   carregarLogoSaved();
 })();
+
+// ===== VIGÊNCIA / CARGA HORÁRIA MENSAL =====
+// Nº aproximado de semanas do mês vigente
+function semanasNoMesVigente(){
+  var now=new Date();
+  var y=now.getFullYear(), m=now.getMonth();
+  var dias=new Date(y, m+1, 0).getDate();
+  return Math.ceil(dias/7);
+}
+// Extrai o número semanal da carga horária (ex.: "4 aulas — 2 por semana" → 4)
+function numeroCargaSemanal(valor){
+  var v=String(valor||'');
+  var m=v.match(/(\d+(?:[.,]\d+)?)/);
+  return m ? parseFloat(m[1].replace(',','.')) : NaN;
+}
+// Total mensal = carga semanal × semanas do mês vigente
+function cargaHorariaMensalLabel(valor){
+  var num=numeroCargaSemanal(valor);
+  var sem=semanasNoMesVigente();
+  var agora=new Date();
+  var mesNome=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'][agora.getMonth()];
+  var ano=agora.getFullYear();
+  if(isNaN(num)){ return (String(valor||'').trim())||'—'; }
+  var total=Math.round(num*sem);
+  return total+' (semanais: '+num+' × '+sem+' semanas de '+mesNome+'/'+ano+')';
+}
 
 // ── Dissectar com IA por aba ──
 async function dissectComIAHab(habIdx){
@@ -1901,7 +1926,7 @@ function updatePreview(){
   document.getElementById('p_met').textContent=metText;
   document.getElementById('p_crit').textContent=crit;
   document.getElementById('p_instr').textContent=getInstrs()||'—';
-  document.getElementById('p_carga').textContent=document.getElementById('cargaHoraria').value||'—';
+  document.getElementById('p_carga').textContent=cargaHorariaMensalLabel(document.getElementById('cargaHoraria').value);
   document.getElementById('p_ref').textContent=document.getElementById('referencias').value||'—';
 }
 
@@ -2456,7 +2481,7 @@ async function exportDocx(){
     var instr   = getInstrs();
     // Metodologia INTEGRADA (uma única para todo o plano, desenvolve todas as habilidades juntas)
     var met     = getMetodologiaIntegrada() || '—';
-    var carga   = document.getElementById('cargaHoraria').value||'';
+    var carga   = cargaHorariaMensalLabel(document.getElementById('cargaHoraria').value) || '—';
     var refs    = document.getElementById('referencias').value||'';
 
     // ── logo: usa o logo enviado (drag & drop) ou o LOGO_URL padrão ──
