@@ -1766,10 +1766,26 @@ function atualizarLogoUI(){
   if(ph) ph.style.display=has?'none':'flex';
   if(act) act.style.display=has?'flex':'none';
 }
+// Mede a imagem (data URL) e retorna width/height em px ajustados ao espaço do cabeçalho (proporção preservada)
+// boxMaxW/boxMaxH em px do docx (~ espaço da logo de 1845 DXA)
+function logoDimensaoDocx(dataURL, boxMaxW, boxMaxH){
+  return new Promise(function(res){
+    var img=new Image();
+    img.onload=function(){
+      var w=img.naturalWidth||0, h=img.naturalHeight||0;
+      if(!w || !h){ res({width:boxMaxW,height:boxMaxH}); return; }
+      var ratio=w/h, dim={width:w,height:h};
+      if(dim.width>boxMaxW){ dim.width=boxMaxW; dim.height=Math.round(dim.width/ratio); }
+      if(dim.height>boxMaxH){ dim.height=boxMaxH; dim.width=Math.round(dim.height*ratio); }
+      res(dim);
+    };
+    img.onerror=function(){ res({width:boxMaxW,height:boxMaxH}); };
+    img.src=dataURL;
+  });
+}
 function trocarLogo(e){
   if(e){e.stopPropagation();}
-  var inp=document.getElementById('logoInput');
-  if(inp){inp.value='';inp.click();}
+  var inp=document.getElementById('logoInput');  if(inp){inp.value='';inp.click();}
 }
 function removerLogo(e){
   if(e){e.stopPropagation();}
@@ -2449,11 +2465,12 @@ async function exportDocx(){
       });
     };
 
-    // Célula valor (col direita) — quebra linha em \n
+    // Célula valor (col direita) — quebra linha em \n, texto JUSTIFICADO
     var VC=function(text){
       var lines=(String(text||'')).split('\n');
       var paras=lines.map(function(l){
         return new Paragraph({
+          alignment:AlignmentType.JUSTIFIED,
           spacing:{before:0,after:40},
           children:[N(l)]
         });
@@ -2535,6 +2552,10 @@ async function exportDocx(){
 
     // ── cabeçalho: logo + dados institucionais ──
     // Tabela: total 10343, cols [1845, 8498]
+    // Espaço da logo (~1845 DXA ≈ 92pt ≈ 123px úteis) — ajusta a imagem preservando a proporção
+    var logoDim = (logoData && typeof logoDimensaoDocx === 'function')
+      ? await logoDimensaoDocx(window.LOGO_DATA||'', 112, 112)
+      : {width:55,height:54};
     var headerCellLogo = new TableCell({
       width:{size:1845,type:WidthType.DXA},
       borders:ab,
@@ -2543,7 +2564,7 @@ async function exportDocx(){
       children:[new Paragraph({
         alignment:AlignmentType.CENTER,
         children: logoData
-          ? [new ImageRun({data:logoData,transformation:{width:55,height:54},type:logoImgType})]
+          ? [new ImageRun({data:logoData,transformation:{width:logoDim.width,height:logoDim.height},type:logoImgType})]
           : [N('')]
       })]
     });
