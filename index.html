@@ -484,6 +484,9 @@ body{background:#e8e5db;background-image:repeating-linear-gradient(0deg,transpar
       <div class="auth-err" id="loginErr"></div>
       <button class="auth-btn-primary" onclick="fazerLogin()">Entrar →</button>
       <div style="margin-top:12px;text-align:center;">
+        <a href="#" onclick="recuperarSenha()" style="color:#666;font-size:.78rem;text-decoration:none;">Esqueci minha senha</a>
+      </div>
+      <div style="margin-top:12px;text-align:center;">
         <a href="#" onclick="showAuthTab('register')" style="color:#90caf9;font-size:.82rem;text-decoration:none;">Não tem conta? Crie agora →</a>
       </div>
     </div>
@@ -3214,7 +3217,7 @@ function sincronizarCloudNoLogin(){
 
 function msgErroFirebase(e){
   var map={
-    'auth/email-already-in-use':'Este e-mail já está cadastrado. Faça login ou use outro e-mail.',
+    'auth/email-already-in-use':'Este e-mail já possui uma conta. Faça login na aba "Entrar" ou use "Esqueci minha senha" para recuperar o acesso.',
     'auth/invalid-email':'E-mail inválido.',
     'auth/weak-password':'A senha deve ter no mínimo 6 caracteres.',
     'auth/user-not-found':'Nenhum cadastro encontrado com este e-mail.',
@@ -3467,6 +3470,28 @@ async function fazerLogin(){
   }catch(e){
     errEl.textContent='⚠️ '+msgErroFirebase(e);
     document.getElementById('loginSenha').value='';
+  }
+}
+
+// Envia e-mail de redefinição de senha para a conta cadastrada
+async function recuperarSenha(){
+  var errEl=document.getElementById('loginErr');
+  var email=document.getElementById('loginEmail').value.trim().toLowerCase();
+  if(!validarEmail(email)){
+    errEl.textContent='⚠️ Digite o e-mail da sua conta no campo acima para recuperar a senha.';
+    return;
+  }
+  if(!firebaseOk()){
+    errEl.textContent='⚠️ Sistema de recuperação ainda não configurado.';
+    return;
+  }
+  try{
+    await FIREBASE_AUTH.sendPasswordResetEmail(email);
+    errEl.className='auth-err ok';
+    errEl.textContent='✅ E-mail enviado! Verifique sua caixa de entrada (e o spam) para redefinir a senha.';
+  }catch(e){
+    errEl.className='auth-err';
+    errEl.textContent='⚠️ '+msgErroFirebase(e);
   }
 }
 
