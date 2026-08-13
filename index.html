@@ -2462,7 +2462,7 @@ async function exportDocx(){
         shading:{fill:'EEE8D8',type:ShadingType.CLEAR},
         margins:{top:80,bottom:80,left:160,right:120},
         verticalAlign:VerticalAlign.CENTER,
-        children:[new Paragraph({children:[B(label)]})]
+        children:[new Paragraph({alignment:AlignmentType.JUSTIFIED,children:[B(label)]})]
       });
     };
 
